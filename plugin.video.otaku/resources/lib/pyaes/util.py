@@ -38,9 +38,7 @@ try:
 except:
 
     def to_bufferable(binary):
-        if isinstance(binary, bytes):
-            return binary
-        return bytes(ord(b) for b in binary)
+        return binary if isinstance(binary, bytes) else bytes(ord(b) for b in binary)
 
     def _get_byte(c):
         return c
@@ -55,7 +53,4 @@ def strip_PKCS7_padding(data):
 
     pad = _get_byte(data[-1])
 
-    if not pad or pad > 16:
-        return data
-
-    return data[:-pad]
+    return data if not pad or pad > 16 else data[:-pad]

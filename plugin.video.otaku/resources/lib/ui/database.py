@@ -34,29 +34,24 @@ def get(function, duration, *args, **kwargs):
 
         key = _hash_function(function, args, kwargs)
         cache_result = cache_get(key)
-        if not reload:
-            if cache_result:
-                if _is_cache_valid(cache_result['date'], duration):
-                    try:
-                        return_data = ast.literal_eval(cache_result['value'])
-                        return return_data
-                    except:
-                        return ast.literal_eval(cache_result['value'])
+        if (
+            not reload
+            and cache_result
+            and _is_cache_valid(cache_result['date'], duration)
+        ):
+            try:
+                return ast.literal_eval(cache_result['value'])
+            except:
+                return ast.literal_eval(cache_result['value'])
 
         fresh_result = repr(function(*args, **kwargs))
 
         if fresh_result is None or fresh_result == 'None':
-            # If the cache is old, but we didn't get fresh result, return the old cache
-            if cache_result:
-                return cache_result
-            return None
-
+            return cache_result or None
         data = ast.literal_eval(fresh_result)
 
         # Because I'm lazy, I've added this crap code so sources won't cache if there are no results
-        if not sources:
-            cache_insert(key, fresh_result)
-        elif len(data[1]) > 0:
+        if not sources or len(data[1]) > 0:
             cache_insert(key, fresh_result)
         else:
             return None
@@ -90,7 +85,7 @@ def cache_get(key):
     try:
         control.cacheFile_lock.acquire()
         cursor = _get_connection_cursor(control.cacheFile)
-        cursor.execute("SELECT * FROM %s WHERE key = ?" % cache_table, [key])
+        cursor.execute(f"SELECT * FROM {cache_table} WHERE key = ?", [key])
         results = cursor.fetchone()
         cursor.close()
         return results
@@ -106,11 +101,18 @@ def cache_insert(key, value):
         cursor = _get_connection_cursor(control.cacheFile)
         now = int(time.time())
         cursor.execute(
-            "CREATE TABLE IF NOT EXISTS %s (key TEXT, value TEXT, date INTEGER, UNIQUE(key))"
-            % cache_table
+            f"CREATE TABLE IF NOT EXISTS {cache_table} (key TEXT, value TEXT, date INTEGER, UNIQUE(key))"
         )
-        cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_%s ON %s (key)" % (cache_table, cache_table))
-        cursor.execute("REPLACE INTO %s (key, value, date) VALUES (?, ?, ?)" % cache_table, (key, value, now))
+
+        cursor.execute(
+            f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{cache_table} ON {cache_table} (key)"
+        )
+
+        cursor.execute(
+            f"REPLACE INTO {cache_table} (key, value, date) VALUES (?, ?, ?)",
+            (key, value, now),
+        )
+
         cursor.connection.commit()
         cursor.close()
     except:
@@ -120,7 +122,6 @@ def cache_insert(key, value):
             pass
         import traceback
         traceback.print_exc()
-        pass
     finally:
         control.try_release_lock(control.cacheFile_lock)
 
@@ -132,12 +133,17 @@ def cache_clear():
 
         for t in [cache_table, 'rel_list', 'rel_lib']:
             try:
-                cursor.execute("DROP TABLE IF EXISTS %s" % t)
+                cursor.execute(f"DROP TABLE IF EXISTS {t}")
                 cursor.execute("VACUUM")
                 cursor.connection.commit()
             except:
                 pass
-        control.showDialog.notification('{}: {}'.format(control.ADDON_NAME, control.lang(30200)), control.lang(30201), time=5000)
+        control.showDialog.notification(
+            f'{control.ADDON_NAME}: {control.lang(30200)}',
+            control.lang(30201),
+            time=5000,
+        )
+
     except:
         pass
     finally:
@@ -212,7 +218,6 @@ def _build_lists_table():
 
         import traceback
         traceback.print_exc()
-        pass
     finally:
         control.try_release_lock(control.anilistSyncDB_lock)
 
@@ -295,7 +300,6 @@ def _update_show(anilist_id, mal_id, kodi_meta, last_updated=''):
 
         import traceback
         traceback.print_exc()
-        pass
     finally:
         control.try_release_lock(control.anilistSyncDB_lock)
 
@@ -312,7 +316,10 @@ def add_meta_ids(anilist_id, meta_ids):
 def add_mapping_id(anilist_id, column, value):
     control.anilistSyncDB_lock.acquire()
     cursor = _get_cursor()
-    cursor.execute('UPDATE shows SET %s=? WHERE anilist_id=?' % column, (value, anilist_id))
+    cursor.execute(
+        f'UPDATE shows SET {column}=? WHERE anilist_id=?', (value, anilist_id)
+    )
+
     cursor.connection.commit()
     cursor.close()
     control.try_release_lock(control.anilistSyncDB_lock)
@@ -353,7 +360,6 @@ def _update_season(show_id, season):
         cursor.close()
         import traceback
         traceback.print_exc()
-        pass
     finally:
         control.try_release_lock(control.anilistSyncDB_lock)
 
@@ -375,7 +381,6 @@ def _update_episode(show_id, season, number, number_abs, update_time, kodi_meta)
         cursor.close()
         import traceback
         traceback.print_exc()
-        pass
     finally:
         control.try_release_lock(control.anilistSyncDB_lock)
 
@@ -413,7 +418,7 @@ def get_episode_list(show_id):
 def get_show(anilist_id):
     control.anilistSyncDB_lock.acquire()
     cursor = _get_connection_cursor(control.anilistSyncDB)
-    db_query = 'SELECT * FROM shows WHERE anilist_id IN (%s)' % anilist_id
+    db_query = f'SELECT * FROM shows WHERE anilist_id IN ({anilist_id})'
     cursor.execute(db_query)
     shows = cursor.fetchone()
     cursor.close()
@@ -424,7 +429,7 @@ def get_show(anilist_id):
 def get_show_mal(mal_id):
     control.anilistSyncDB_lock.acquire()
     cursor = _get_connection_cursor(control.anilistSyncDB)
-    db_query = 'SELECT * FROM shows WHERE mal_id IN (%s)' % mal_id
+    db_query = f'SELECT * FROM shows WHERE mal_id IN ({mal_id})'
     cursor.execute(db_query)
     shows = cursor.fetchone()
     cursor.close()
@@ -486,7 +491,7 @@ def getSearchHistory(media_type='show'):
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_history ON movie (value)")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_history ON show (value)")
 
-        cursor.execute("SELECT * FROM %s" % media_type)
+        cursor.execute(f"SELECT * FROM {media_type}")
         history = cursor.fetchall()
         cursor.close()
         history.reverse()
@@ -518,10 +523,7 @@ def addSearchHistory(search_string, media_type):
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_history ON movie (value)")
         cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_history ON show (value)")
 
-        cursor.execute(
-            "REPLACE INTO %s Values (?)"
-            % media_type, (search_string,)
-        )
+        cursor.execute(f"REPLACE INTO {media_type} Values (?)", (search_string,))
 
         cursor.connection.commit()
         cursor.close()
@@ -542,7 +544,10 @@ def getTorrentList(anilist_id):
     try:
         cursor = _get_connection_cursor(control.torrentScrapeCacheFile)
         _try_create_torrent_cache(cursor)
-        cursor.execute("SELECT * FROM %s WHERE anilist_id=?" % cache_table, (anilist_id,))
+        cursor.execute(
+            f"SELECT * FROM {cache_table} WHERE anilist_id=?", (anilist_id,)
+        )
+
         torrent_list = cursor.fetchone()
         zfill_int = None
         cursor.close()
@@ -574,7 +579,9 @@ def _try_create_torrent_cache(cursor):
         "UNIQUE(anilist_id))"
         % cache_table
     )
-    cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS ix_%s ON %s (anilist_id)" % (cache_table, cache_table))
+    cursor.execute(
+        f"CREATE UNIQUE INDEX IF NOT EXISTS ix_{cache_table} ON {cache_table} (anilist_id)"
+    )
 
 
 def addTorrentList(anilist_id, torrent_list, zfill_int):
@@ -640,7 +647,7 @@ def torrent_cache_clear():
         cursor = _get_connection_cursor(control.torrentScrapeCacheFile)
         for t in [cache_table, 'rel_list', 'rel_lib']:
             try:
-                cursor.execute("DROP TABLE IF EXISTS %s" % t)
+                cursor.execute(f"DROP TABLE IF EXISTS {t}")
                 cursor.execute("VACUUM")
                 cursor.connection.commit()
             except:
@@ -655,7 +662,11 @@ def torrent_cache_clear():
     finally:
         control.try_release_lock(control.torrentScrapeCacheFile_lock)
 
-    control.showDialog.notification('{}: {}'.format(control.ADDON_NAME, control.lang(30200)), control.lang(30202), time=5000)
+    control.showDialog.notification(
+        f'{control.ADDON_NAME}: {control.lang(30200)}',
+        control.lang(30202),
+        time=5000,
+    )
 
 
 def clearSearchHistory():
@@ -688,7 +699,4 @@ def clearSearchHistory():
 
 
 def _dict_factory(cursor, row):
-    d = {}
-    for idx, col in enumerate(cursor.description):
-        d[col[0]] = row[idx]
-    return d
+    return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}

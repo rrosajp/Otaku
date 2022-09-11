@@ -49,7 +49,7 @@ class SourceSelect(BaseWindow):
         for idx, i in enumerate(self.sources):
             if not i:
                 continue
-            menu_item = control.menuItem(label='%s' % i['release_title'])
+            menu_item = control.menuItem(label=f"{i['release_title']}")
             for info in list(i.keys()):
                 try:
                     value = i[info]

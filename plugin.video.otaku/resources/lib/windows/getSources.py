@@ -70,12 +70,10 @@ class Sources(DisplayWindow):
 
             try:
                 self.setProgress()
-                self.setText("4K: %s | 1080: %s | 720: %s | SD: %s" % (
-                    control.colorString(self.torrents_qual_len[0] + self.hosters_qual_len[0]),
-                    control.colorString(self.torrents_qual_len[1] + self.hosters_qual_len[1]),
-                    control.colorString(self.torrents_qual_len[2] + self.hosters_qual_len[2]),
-                    control.colorString(self.torrents_qual_len[3] + self.hosters_qual_len[3]),
-                ))
+                self.setText(
+                    f"4K: {control.colorString(self.torrents_qual_len[0] + self.hosters_qual_len[0])} | 1080: {control.colorString(self.torrents_qual_len[1] + self.hosters_qual_len[1])} | 720: {control.colorString(self.torrents_qual_len[2] + self.hosters_qual_len[2])} | SD: {control.colorString(self.torrents_qual_len[3] + self.hosters_qual_len[3])}"
+                )
+
 
             except:
                 import traceback

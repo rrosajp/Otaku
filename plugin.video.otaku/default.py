@@ -37,11 +37,14 @@ def _add_last_watched():
     except:
         return
 
-    MENU_ITEMS.insert(0, (
-        "%s[I]%s[/I]" % (control.lang(30000), last_watched['name'].encode('utf-8') if six.PY2 else last_watched['name']),
-        "animes/%s/null/" % anilist_id,
-        last_watched['poster']
-    ))
+    MENU_ITEMS.insert(
+        0,
+        (
+            f"{control.lang(30000)}[I]{last_watched['name'].encode('utf-8') if six.PY2 else last_watched['name']}[/I]",
+            f"animes/{anilist_id}/null/",
+            last_watched['poster'],
+        ),
+    )
 
 
 def get_animes_contentType(seasons=None):

@@ -53,7 +53,7 @@ class AllDebrid:
 
     @alldebird_guard_response
     def get(self, url, **params):
-        params.update({'agent': self.agent_identifier})
+        params['agent'] = self.agent_identifier
         return self.session.get(urllib_parse.urljoin(self.base_url, url), params=params)
 
     def get_json(self, url, **params):
@@ -61,37 +61,43 @@ class AllDebrid:
 
     @alldebird_guard_response
     def post(self, url, post_data=None, **params):
-        params.update({'agent': self.agent_identifier})
+        params['agent'] = self.agent_identifier
         return self.session.post(urllib_parse.urljoin(self.base_url, url), data=post_data, params=params)
 
     def post_json(self, url, post_data=None, **params):
-        post_ = self.post(url, post_data, **params)
-        if not post_:
+        if post_ := self.post(url, post_data, **params):
+            return self._extract_data(post_.json())
+        else:
             return
-        return self._extract_data(post_.json())
 
     @staticmethod
     def _extract_data(response):
-        if 'data' in response:
-            return response['data']
-        else:
-            return response
+        return response['data'] if 'data' in response else response
 
     def auth(self):
         resp = self.get_json('pin/get')
         expiry = pin_ttl = int(resp['expires_in'])
         auth_complete = False
         control.copy2clip(resp['pin'])
-        control.progressDialog.create(control.ADDON_NAME + ': AllDebrid Auth',
-                                      control.lang(30100).format(control.colorString(resp['base_url'])) + '[CR]'
-                                      + control.lang(30101).format(control.colorString(resp['pin'])) + '[CR]'
-                                      + control.lang(30102))
+        control.progressDialog.create(
+            f'{control.ADDON_NAME}: AllDebrid Auth',
+            control.lang(30100).format(control.colorString(resp['base_url']))
+            + '[CR]'
+            + control.lang(30101).format(control.colorString(resp['pin']))
+            + '[CR]'
+            + control.lang(30102),
+        )
+
 
         # Seems the All Debrid servers need some time do something with the pin before polling
         # Polling too early will cause an invalid pin error
         control.sleep(5 * 1000)
         control.progressDialog.update(100)
-        while not auth_complete and not expiry <= 0 and not control.progressDialog.iscanceled():
+        while (
+            not auth_complete
+            and expiry > 0
+            and not control.progressDialog.iscanceled()
+        ):
             auth_complete, expiry = self.poll_auth(check=resp['check'], pin=resp['pin'])
             progress_percent = 100 - int((float(pin_ttl - expiry) / pin_ttl) * 100)
             control.progressDialog.update(progress_percent)
@@ -104,7 +110,7 @@ class AllDebrid:
         self.store_user_info()
 
         if auth_complete:
-            control.ok_dialog(control.ADDON_NAME, 'AllDebrid {}'.format(control.lang(30103)))
+            control.ok_dialog(control.ADDON_NAME, f'AllDebrid {control.lang(30103)}')
         else:
             return
 
@@ -135,7 +141,7 @@ class AllDebrid:
         host_list = self.update_relevant_hosters()
         if host_list is not None:
             hosters['premium']['all_debrid'] = \
-                [(d, d.split('.')[0])
+                    [(d, d.split('.')[0])
                  for l in list(host_list['hosts'].values())
                  if 'status' in l and l['status']
                  for d in l['domains']]

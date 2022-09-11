@@ -82,8 +82,7 @@ class WatchlistFlavorBase(object):
             show_meta = ast.literal_eval(show['kodi_meta'])
             next_up_meta['image'] = show_meta.get('fanart')
             anilist_id = show['anilist_id']
-            episodes = database.get_episode_list(show['anilist_id'])
-            if episodes:
+            if episodes := database.get_episode_list(show['anilist_id']):
                 try:
                     episode_meta = ast.literal_eval(episodes[next_up]['kodi_meta'])
                     next_up_meta['title'] = episode_meta['info']['title']
@@ -94,10 +93,16 @@ class WatchlistFlavorBase(object):
 
             elif show['simkl_id']:
                 try:
-                    resp = requests.get('https://api.simkl.com/anime/episodes/%s?extended=full' % show['simkl_id']).json()
+                    resp = requests.get(
+                        f"https://api.simkl.com/anime/episodes/{show['simkl_id']}?extended=full"
+                    ).json()
+
                     episode_meta = resp[next_up]
                     next_up_meta['title'] = episode_meta['title']
-                    next_up_meta['image'] = 'https://simkl.net/episodes/%s_w.jpg' % episode_meta['img']
+                    next_up_meta[
+                        'image'
+                    ] = f"https://simkl.net/episodes/{episode_meta['img']}_w.jpg"
+
                     next_up_meta['plot'] = episode_meta['description']
                 except:
                     pass
@@ -115,34 +120,36 @@ class WatchlistFlavorBase(object):
         return mapping_id
 
     def _get_flavor_id(self, anilist_id, flavor):
-        arm_resp = requests.get("https://armkai.vercel.app/api/search?type=anilist&id={}".format(anilist_id)).json()
-        flavor_id = arm_resp.get(flavor[:-3])
-        return flavor_id
+        arm_resp = requests.get(
+            f"https://armkai.vercel.app/api/search?type=anilist&id={anilist_id}"
+        ).json()
+
+        return arm_resp.get(flavor[:-3])
 
     def _format_login_data(self, name, image, token):
-        login_data = {
+        return {
             "name": name,
             "image": image,
             "token": token,
         }
 
-        return login_data
-
     def _parse_view(self, base, is_dir=True):
         return [
-            utils.allocate_item("%s" % base["name"],
-                                base["url"],
-                                is_dir,
-                                base["image"],
-                                base["plot"],
-                                base.get("fanart"),
-                                base.get("poster"))
+            utils.allocate_item(
+                f'{base["name"]}',
+                base["url"],
+                is_dir,
+                base["image"],
+                base["plot"],
+                base.get("fanart"),
+                base.get("poster"),
+            )
         ]
 
     def _to_url(self, url=''):
         if url.startswith("/"):
             url = url[1:]
-        return "%s/%s" % (self._URL, url)
+        return f"{self._URL}/{url}"
 
     def _get_request(self, url, headers=None, cookies=None, data=None, params=None):
         return requests.get(url, headers=headers, cookies=cookies, data=data, params=params)

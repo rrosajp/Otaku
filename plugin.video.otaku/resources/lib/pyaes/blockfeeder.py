@@ -47,8 +47,7 @@ from resources.lib.pyaes.util import append_PKCS7_padding, strip_PKCS7_padding, 
 # ECB and CBC are block-only ciphers
 
 def _block_can_consume(self, size):
-    if size >= 16: return 16
-    return 0
+    return 16 if size >= 16 else 0
 
 # After padding, we may have more than one block
 def _block_final_encrypt(self, data):

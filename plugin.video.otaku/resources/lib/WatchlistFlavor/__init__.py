@@ -73,34 +73,35 @@ class WatchlistFlavor(object):
     @staticmethod
     def login_request(flavor):
         if not WatchlistFlavor.__is_flavor_valid(flavor):
-            raise Exception("Invalid flavor %s" % flavor)
+            raise Exception(f"Invalid flavor {flavor}")
 
         flavor_class = WatchlistFlavor.__instance_flavor(flavor)
         login_ts = ''  # int(time())
 
-        return WatchlistFlavor.__set_login(flavor,
-                                           flavor_class.login(),
-                                           str(login_ts)
-                                           )
+        return WatchlistFlavor.__set_login(flavor, flavor_class.login(), login_ts)
 
     @staticmethod
     def logout_request(flavor):
-        control.setSetting('%s.userid' % flavor, '')
-        control.setSetting('%s.authvar' % flavor, '')
-        control.setSetting('%s.token' % flavor, '')
-        control.setSetting('%s.refresh' % flavor, '')
-        control.setSetting('%s.username' % flavor, '')
-        control.setSetting('%s.password' % flavor, '')
-        control.setSetting('%s.sort' % flavor, '')
-        control.setSetting('%s.titles' % flavor, '')
+        control.setSetting(f'{flavor}.userid', '')
+        control.setSetting(f'{flavor}.authvar', '')
+        control.setSetting(f'{flavor}.token', '')
+        control.setSetting(f'{flavor}.refresh', '')
+        control.setSetting(f'{flavor}.username', '')
+        control.setSetting(f'{flavor}.password', '')
+        control.setSetting(f'{flavor}.sort', '')
+        control.setSetting(f'{flavor}.titles', '')
         return control.refresh()
 
     @staticmethod
     def __get_flavor_class(name):
-        for flav in WatchlistFlavorBase.__subclasses__():
-            if flav.name() == name:
-                return flav
-        return None
+        return next(
+            (
+                flav
+                for flav in WatchlistFlavorBase.__subclasses__()
+                if flav.name() == name
+            ),
+            None,
+        )
 
     @staticmethod
     def __is_flavor_valid(name):
@@ -108,14 +109,14 @@ class WatchlistFlavor(object):
 
     @staticmethod
     def __instance_flavor(name):
-        user_id = control.getSetting('%s.userid' % name)
-        auth_var = control.getSetting('%s.authvar' % name)
-        token = control.getSetting('%s.token' % name)
-        refresh = control.getSetting('%s.refresh' % name)
-        username = control.getSetting('%s.username' % name)
-        password = control.getSetting('%s.password' % name)
-        sort = control.getSetting('%s.sort' % name)
-        title_lang = control.getSetting('%s.titles' % name)
+        user_id = control.getSetting(f'{name}.userid')
+        auth_var = control.getSetting(f'{name}.authvar')
+        token = control.getSetting(f'{name}.token')
+        refresh = control.getSetting(f'{name}.refresh')
+        username = control.getSetting(f'{name}.username')
+        password = control.getSetting(f'{name}.password')
+        sort = control.getSetting(f'{name}.sort')
+        title_lang = control.getSetting(f'{name}.titles')
 
         flavor_class = WatchlistFlavor.__get_flavor_class(name)
         return flavor_class(auth_var, username, password, user_id, token, refresh, sort, title_lang)
@@ -126,7 +127,7 @@ class WatchlistFlavor(object):
             return control.ok_dialog('Login', 'Incorrect username or password')
 
         for _id, value in list(res.items()):
-            control.setSetting('%s.%s' % (flavor, _id), value)
+            control.setSetting(f'{flavor}.{_id}', value)
 
         control.refresh()
         return control.ok_dialog('Login', 'Success')

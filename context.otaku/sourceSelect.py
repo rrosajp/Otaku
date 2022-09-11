@@ -9,6 +9,6 @@ if __name__ == '__main__':
     matches = ['play/', 'play_movie/', 'play_gogo/']
 
     if any(x in path for x in matches):
-        path = path + '?source_select=true'
+        path = f'{path}?source_select=true'
 
-    xbmc.executebuiltin('PlayMedia(%s)' % path)
+    xbmc.executebuiltin(f'PlayMedia({path})')

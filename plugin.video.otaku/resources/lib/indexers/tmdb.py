@@ -16,13 +16,9 @@ class TMDBAPI:
 
     def get_request(self, url):
         try:
-            if '?' not in url:
-                url += "?"
-            else:
-                url += "&"
-
+            url += "?" if '?' not in url else "&"
             if 'api_key' not in url:
-                url += "api_key=%s" % self.apiKey
+                url += f"api_key={self.apiKey}"
                 url = self.baseUrl + url
 
             try:
@@ -67,8 +63,8 @@ class TMDBAPI:
             if traktItem['tmdb'] is None:
                 return None
 
-            url = 'tv/%s?&append_to_response=credits,alternative_titles,videos,content_ratings,images&language=en-US' % \
-                  traktItem['tmdb']
+            url = f"tv/{traktItem['tmdb']}?&append_to_response=credits,alternative_titles,videos,content_ratings,images&language=en-US"
+
 
             self.get_TMDB_Fanart_Threaded(url, (traktItem['tvdb'], 'tv'))
 
@@ -97,8 +93,8 @@ class TMDBAPI:
             if traktItem['tmdb'] is None:
                 return None
 
-            url = 'tv/%s?&append_to_response=credits,alternative_titles,videos,content_ratings,images&language=en-US' % \
-                  traktItem['tmdb']
+            url = f"tv/{traktItem['tmdb']}?&append_to_response=credits,alternative_titles,videos,content_ratings,images&language=en-US"
+
 
             self.get_TMDB_Fanart_Threaded(url, (traktItem['tvdb'], 'tv'))
 
@@ -124,8 +120,8 @@ class TMDBAPI:
     def showSeasonToListItem(self, seasonObject=None, showArgs=None):
 
         try:
-            url = 'tv/%s/season/%s?&append_to_response=credits,videos,images&language=en-US' % (
-                str(showArgs['tmdb']), str(seasonObject))
+            url = f"tv/{str(showArgs['tmdb'])}/season/{str(seasonObject)}?&append_to_response=credits,videos,images&language=en-US"
+
 
             self.get_TMDB_Fanart_Threaded(url, (83121, 'season'))
 
@@ -154,10 +150,8 @@ class TMDBAPI:
             if showArgs['tmdb'] is None:
                 return None
 
-            url = 'tv/%s/season/%s/episode/%s?&append_to_response=credits,videos,images&language=en-US' % (
-                showArgs['tmdb'],
-                season,
-                number)
+            url = f"tv/{showArgs['tmdb']}/season/{season}/episode/{number}?&append_to_response=credits,videos,images&language=en-US"
+
             response = self.get_request(url)
 
             if response.get('status_code') == 34:
@@ -169,17 +163,14 @@ class TMDBAPI:
             except:
                 pass
 
-            item = self.art
-
-            return item
+            return self.art
         except:
             return None
 
     def parseEpisodeInfo(self, response, traktInfo, showArgs):
         try:
-            if "status_code" in response:
-                if response["status_code"] == 34:
-                    return None
+            if "status_code" in response and response["status_code"] == 34:
+                return None
 
             art = {}
 

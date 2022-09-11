@@ -14,7 +14,7 @@ class Premiumize:
         self.client_id = "855400527"
         # self.client_secret = ""
         self.headers = {
-            'Authorization': 'Bearer {}'.format(control.getSetting('premiumize.token'))
+            'Authorization': f"Bearer {control.getSetting('premiumize.token')}"
         }
 
     def auth(self):
@@ -31,7 +31,11 @@ class Premiumize:
                                       + control.lang(30102))
         control.progressDialog.update(0)
 
-        while poll_again and not token_ttl <= 0 and not control.progressDialog.iscanceled():
+        while (
+            poll_again
+            and token_ttl > 0
+            and not control.progressDialog.iscanceled()
+        ):
             poll_again, success = self.poll_token(token['device_code'])
             progress_percent = 100 - int((float((expiry - token_ttl) / expiry) * 100))
             control.progressDialog.update(progress_percent)
@@ -41,19 +45,16 @@ class Premiumize:
         control.progressDialog.close()
 
         if success:
-            control.ok_dialog(control.ADDON_NAME, 'Premiumize ' + control.lang(30103))
+            control.ok_dialog(control.ADDON_NAME, f'Premiumize {control.lang(30103)}')
 
     def poll_token(self, device_code):
         data = {'client_id': self.client_id, 'code': device_code, 'grant_type': 'device_code'}
         token = requests.post('https://www.premiumize.me/token', data=data).json()
 
         if 'error' in token:
-            if token['error'] == "access_denied":
-                return False, False
-            return True, False
-
+            return (False, False) if token['error'] == "access_denied" else (True, False)
         control.setSetting('premiumize.token', token['access_token'])
-        self.headers['Authorization'] = 'Bearer {}'.format(token['access_token'])
+        self.headers['Authorization'] = f"Bearer {token['access_token']}"
 
         account_info = self.account_info()
         control.setSetting('premiumize.username', account_info['customer_id'])
@@ -64,22 +65,19 @@ class Premiumize:
         if self.headers['Authorization'] == 'Bearer ':
             # tools.log('User is not authorised to make PM requests')
             return None
-        url = "https://www.premiumize.me/api{}".format(url)
-        req = requests.get(url, timeout=10, headers=self.headers).json()
-        return req
+        url = f"https://www.premiumize.me/api{url}"
+        return requests.get(url, timeout=10, headers=self.headers).json()
 
     def post_url(self, url, data):
         if self.headers['Authorization'] == 'Bearer ':
             # tools.log('User is not authorised to make PM requests')
             return None
-        url = "https://www.premiumize.me/api{}".format(url)
-        req = requests.post(url, headers=self.headers, data=data, timeout=10).json()
-        return req
+        url = f"https://www.premiumize.me/api{url}"
+        return requests.post(url, headers=self.headers, data=data, timeout=10).json()
 
     def account_info(self):
         url = "/account/info"
-        response = self.get_url(url)
-        return response
+        return self.get_url(url)
 
     def list_folder(self, folderID):
         url = "/folder/list"
@@ -95,8 +93,7 @@ class Premiumize:
     def hash_check(self, hashList):
         url = '/cache/check'
         postData = {'items[]': hashList}
-        response = self.post_url(url, postData)
-        return response
+        return self.post_url(url, postData)
 
     def item_details(self, itemID):
         url = "/item/details"
@@ -125,26 +122,19 @@ class Premiumize:
 
     def get_used_space(self):
         info = self.account_info()
-        used_space = int(((info['space_used'] / 1024) / 1024) / 1024)
-        return used_space
+        return int(((info['space_used'] / 1024) / 1024) / 1024)
 
     def hosterCacheCheck(self, source_list):
         post_data = {'items[]': source_list}
         return self.post_url('/cache/check', data=post_data)
 
     def updateRelevantHosters(self):
-        hoster_list = database.get(self.post_url, 1, '/services/list', {})
-        return hoster_list
+        return database.get(self.post_url, 1, '/services/list', {})
 
     def resolve_hoster(self, source):
 
         directLink = self.direct_download(source)
-        if directLink['status'] == 'success':
-            stream_link = directLink['location']
-        else:
-            stream_link = None
-
-        return stream_link
+        return directLink['location'] if directLink['status'] == 'success' else None
 
     def folder_streams(self, folderID):
 
@@ -163,11 +153,11 @@ class Premiumize:
 
     def internal_folders(self, folderID):
         folders = self.list_folder(folderID)
-        returnFolders = []
-        for i in folders:
-            if i['type'] == 'folder':
-                returnFolders.append({'name': i['name'], 'id': i['id'], 'type': 'folder'})
-        return returnFolders
+        return [
+            {'name': i['name'], 'id': i['id'], 'type': 'folder'}
+            for i in folders
+            if i['type'] == 'folder'
+        ]
 
     def resolve_single_magnet(self, hash_, magnet, episode=''):
 
@@ -175,7 +165,7 @@ class Premiumize:
         folder_details = sorted(folder_details, key=lambda i: int(i['size']), reverse=True)
         folder_details = [i for i in folder_details if source_utils.is_file_ext_valid(i['link'])]
 
-        filter_list = [i for i in folder_details]
+        filter_list = list(folder_details)
 
         if len(filter_list) == 1:
             stream_link = self._fetch_transcode_or_standard(filter_list[0])

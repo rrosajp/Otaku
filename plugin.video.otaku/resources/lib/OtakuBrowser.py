@@ -13,29 +13,29 @@ class OtakuBrowser(BrowserBase):
 
     def _parse_history_view(self, res):
         name = res
-        return utils.allocate_item(name, "search/" + name + "/1", True)
+        return utils.allocate_item(name, f"search/{name}/1", True)
 
     def _parse_airing_dub_view(self, res):
         name = list(res.values())[0]
         mal_id = (list(res.keys())[0]).rsplit('/')[-2]
-        url = 'watchlist_to_ep/{}//0'.format(mal_id)
+        url = f'watchlist_to_ep/{mal_id}//0'
 
         try:
             image = ast.literal_eval(database.get_show_mal(mal_id)['kodi_meta'])['poster']
         except:
             image = 'DefaultVideo.png'
 
-        info = {}
+        info = {
+            'title': name,
+            'plot': '** = Dub production suspended until further notice.\n++ = Dub is being produced from home studios with an irregular release schedule.',
+            'mediatype': 'tvshow',
+        }
 
-        info['title'] = name
-        info['plot'] = '** = Dub production suspended until further notice.\n++ = Dub is being produced from home studios with an irregular release schedule.'
-        info['mediatype'] = 'tvshow'
 
         return utils.allocate_item(name, url, True, image, info)
 
     def _json_request(self, url, data=''):
-        response = json.loads(self._get_request(url, data))
-        return response
+        return json.loads(self._get_request(url, data))
 
     # TODO: Not sure i want this here..
     def search_history(self, search_array):
@@ -47,11 +47,7 @@ class OtakuBrowser(BrowserBase):
     def get_airing_dub(self):
         resp = requests.get('https://armkai.vercel.app/api/airingdub')
 
-        if not resp.ok:
-            return []
-
-        all_results = list(map(self._parse_airing_dub_view, resp.json()))
-        return all_results
+        return list(map(self._parse_airing_dub_view, resp.json())) if resp.ok else []
 
     def get_latest(self, real_debrid_enabled, premiumize_enabled):
         if real_debrid_enabled or premiumize_enabled:
@@ -59,8 +55,7 @@ class OtakuBrowser(BrowserBase):
         else:
             page = pages.gogoanime.sources
 
-        latest = database.get(page().get_latest, 0.125)
-        return latest
+        return database.get(page().get_latest, 0.125)
 
     def get_latest_dub(self, real_debrid_enabled, premiumize_enabled):
         if real_debrid_enabled or premiumize_enabled:
@@ -68,8 +63,7 @@ class OtakuBrowser(BrowserBase):
         else:
             page = pages.gogoanime.sources
 
-        latest_dub = database.get(page().get_latest_dub, 0.125)
-        return latest_dub
+        return database.get(page().get_latest_dub, 0.125)
 
     def get_backup(self, anilist_id, source):
         show = database.get_show(anilist_id)
@@ -81,14 +75,19 @@ class OtakuBrowser(BrowserBase):
 
         # result = requests.get("https://kaito-b.firebaseio.com/%s/Pages/%s.json" % (mal_id, source))
         # return result.json()
-        result = requests.get("https://arm2.vercel.app/api/kaito-b?type=myanimelist&id={}".format(mal_id)).json()
+        result = requests.get(
+            f"https://arm2.vercel.app/api/kaito-b?type=myanimelist&id={mal_id}"
+        ).json()
+
         result = result.get('Pages', {}).get(source, {})
         return result
 
     def get_mal_id(self, anilist_id):
-        arm_resp = self._json_request("https://armkai.vercel.app/api/search?type=anilist&id={}".format(anilist_id))
-        mal_id = arm_resp["mal"]
-        return mal_id
+        arm_resp = self._json_request(
+            f"https://armkai.vercel.app/api/search?type=anilist&id={anilist_id}"
+        )
+
+        return arm_resp["mal"]
 
     def clean_show(self, show_id, meta_ids):
         database.add_meta_ids(show_id, meta_ids)
@@ -99,8 +98,7 @@ class OtakuBrowser(BrowserBase):
         database.add_fanart(show_id, name)
 
     def search_trakt_shows(self, anilist_id):
-        shows = trakt.TRAKTAPI().search_trakt_shows(anilist_id)
-        return shows
+        return trakt.TRAKTAPI().search_trakt_shows(anilist_id)
 
     def get_trakt_episodes(self, show_id, season, page=1):
         return trakt.TRAKTAPI().get_trakt_episodes(show_id, season)
@@ -129,19 +127,16 @@ class OtakuBrowser(BrowserBase):
 
         if not show_meta['meta_ids']:
             name = ast.literal_eval(show_meta['kodi_meta'])['name']
-            trakt_id = trakt.TRAKTAPI().get_trakt_id(name)
+            if trakt_id := trakt.TRAKTAPI().get_trakt_id(name):
+                database.add_meta_ids(anilist_id, str(trakt_id))
 
-            if not trakt_id:
+            else:
                 return self.get_anime_simkl(anilist_id, filter_lang)
-
-            database.add_meta_ids(anilist_id, str(trakt_id))
 
         return self.get_anime_trakt(anilist_id, filter_lang=filter_lang)
 
     def get_episodeList(self, show_id, pass_idx, filter_lang=None, rescrape=False):
-        episodes = database.get_episode_list(int(show_id))
-
-        if episodes:
+        if episodes := database.get_episode_list(int(show_id)):
             items = trakt.TRAKTAPI()._process_trakt_episodes(show_id, '', episodes, '')
         else:
             items = simkl.SIMKLAPI().get_episodes(show_id)
@@ -172,12 +167,9 @@ class OtakuBrowser(BrowserBase):
             if int(air_date[:4]) < 2019:
                 return True
 
-            todays_date = datetime.datetime.today().strftime('%Y-%m-%d')
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
 
-            if air_date > todays_date:
-                return False
-            else:
-                return True
+            return air_date <= todays_date
         except:
             import traceback
             traceback.print_exc()
@@ -197,15 +189,13 @@ class OtakuBrowser(BrowserBase):
             'rescrape': rescrape,
             'get_backup': self.get_backup
         }
-        sources = pages.getSourcesHelper(actionArgs)
-        return sources
+        return pages.getSourcesHelper(actionArgs)
 
     def get_latest_sources(self, debrid_provider, hash_):
         resolvers = {'premiumize': premiumize.Premiumize,
                      'all_debrid': all_debrid.AllDebrid,
                      'real_debrid': real_debrid.RealDebrid}
 
-        magnet = 'magnet:?xt=urn:btih:' + hash_
+        magnet = f'magnet:?xt=urn:btih:{hash_}'
         api = resolvers[debrid_provider]
-        link = api().resolve_single_magnet(hash_, magnet)
-        return link
+        return api().resolve_single_magnet(hash_, magnet)

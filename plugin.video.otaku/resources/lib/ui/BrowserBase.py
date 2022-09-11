@@ -10,7 +10,7 @@ class BrowserBase(object):
 
         if url.startswith("/"):
             url = url[1:]
-        return "%s/%s" % (self._BASE_URL, url)
+        return f"{self._BASE_URL}/{url}"
 
     def _send_request(self, url, data=None, set_request=None):
         return http.send_request(url, data, set_request).text
@@ -20,5 +20,5 @@ class BrowserBase(object):
 
     def _get_request(self, url, data=None, set_request=None):
         if data:
-            url = "%s?%s" % (url, urllib_parse.urlencode(data))
+            url = f"{url}?{urllib_parse.urlencode(data)}"
         return self._send_request(url, None, set_request)

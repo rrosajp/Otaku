@@ -40,13 +40,13 @@ class BaseWindow(control.xmlWindow):
             self.item_information = {}
 
         # for id, value in self.item_information['ids'].items():
-        self.setProperty('item.ids.%s_id' % 1, str('gh'))
+        self.setProperty('item.ids.1_id', 'gh')
 
         # for i in self.item_information['art'].keys():
-        self.setProperty('item.art.%s' % 'thumb', self.item_information.get('thumb'))
-        self.setProperty('item.art.%s' % 'poster', self.item_information.get('poster'))
-        self.setProperty('item.art.%s' % 'fanart', self.item_information.get('fanart'))
-        self.setProperty('item.info.%s' % 'title', self.item_information.get('name'))
+        self.setProperty('item.art.thumb', self.item_information.get('thumb'))
+        self.setProperty('item.art.poster', self.item_information.get('poster'))
+        self.setProperty('item.art.fanart', self.item_information.get('fanart'))
+        self.setProperty('item.info.title', self.item_information.get('name'))
 
         # self.item_information['info'] = tools.clean_air_dates(self.item_information['info'])
 
@@ -73,6 +73,6 @@ class BaseWindow(control.xmlWindow):
 
         value = 'TBA'
         try:
-            self.setProperty('item.info.%s' % 1, str('fdf'))
+            self.setProperty('item.info.1', 'fdf')
         except UnicodeEncodeError:
-            self.setProperty('item.info.%s' % 1, 'fdf')
+            self.setProperty('item.info.1', 'fdf')

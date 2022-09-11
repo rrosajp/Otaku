@@ -19,7 +19,7 @@ addonInfo = xbmcaddon.Addon().getAddonInfo
 ADDON_NAME = addonInfo('id')
 __settings__ = xbmcaddon.Addon(ADDON_NAME)
 __language__ = __settings__.getLocalizedString
-CACHE = StorageServer.StorageServer("%s.animeinfo" % ADDON_NAME, 24)
+CACHE = StorageServer.StorageServer(f"{ADDON_NAME}.animeinfo", 24)
 addonInfo = __settings__.getAddonInfo
 PY2 = sys.version_info[0] == 2
 TRANSLATEPATH = xbmc.translatePath if PY2 else xbmcvfs.translatePath
@@ -45,10 +45,10 @@ dialogWindow = xbmcgui.WindowDialog
 xmlWindow = xbmcgui.WindowXMLDialog
 condVisibility = xbmc.getCondVisibility
 sleep = xbmc.sleep
-fanart_ = ADDON_PATH + "/fanart.jpg"
+fanart_ = f"{ADDON_PATH}/fanart.jpg"
 IMAGES_PATH = os.path.join(ADDON_PATH, 'resources', 'images')
 OTAKU_LOGO_PATH = os.path.join(IMAGES_PATH, 'trans-goku.png')
-OTAKU_FANART_PATH = ADDON_PATH + "/fanart.jpg"
+OTAKU_FANART_PATH = f"{ADDON_PATH}/fanart.jpg"
 menuItem = xbmcgui.ListItem
 execute = xbmc.executebuiltin
 
@@ -66,10 +66,7 @@ def closeBusyDialog():
 
 
 def log(msg, level="debug"):
-    if level == "info":
-        level = LOGINFO
-    else:
-        level = xbmc.LOGDEBUG
+    level = LOGINFO if level == "info" else xbmc.LOGDEBUG
     xbmc.log('@@@@Otaku log:\n{0}'.format(msg), level)
 
 
@@ -79,68 +76,57 @@ def try_release_lock(lock):
 
 
 def real_debrid_enabled():
-    if getSetting('rd.auth') != '' and getSetting('realdebrid.enabled') == 'true':
-        return True
-    else:
-        return False
+    return (
+        getSetting('rd.auth') != ''
+        and getSetting('realdebrid.enabled') == 'true'
+    )
 
 
 def all_debrid_enabled():
-    if getSetting('alldebrid.apikey') != '' and getSetting('alldebrid.enabled') == 'true':
-        return True
-    else:
-        return False
+    return (
+        getSetting('alldebrid.apikey') != ''
+        and getSetting('alldebrid.enabled') == 'true'
+    )
 
 
 def premiumize_enabled():
-    if getSetting('premiumize.token') != '' and getSetting('premiumize.enabled') == 'true':
-        return True
-    else:
-        return False
+    return (
+        getSetting('premiumize.token') != ''
+        and getSetting('premiumize.enabled') == 'true'
+    )
 
 
 def myanimelist_enabled():
-    if getSetting('mal.token') != '' and getSetting('mal.enabled') == 'true':
-        return True
-    else:
-        return False
+    return getSetting('mal.token') != '' and getSetting('mal.enabled') == 'true'
 
 
 def kitsu_enabled():
-    if getSetting('kitsu.token') != '' and getSetting('kitsu.enabled') == 'true':
-        return True
-    else:
-        return False
+    return (
+        getSetting('kitsu.token') != ''
+        and getSetting('kitsu.enabled') == 'true'
+    )
 
 
 def anilist_enabled():
-    if getSetting('anilist.token') != '' and getSetting('anilist.enabled') == 'true':
-        return True
-    else:
-        return False
+    return (
+        getSetting('anilist.token') != ''
+        and getSetting('anilist.enabled') == 'true'
+    )
 
 
 def watchlist_to_update():
-    if getSetting('watchlist.update.enabled') == 'true':
-        flavor = getSetting('watchlist.update.flavor').lower()
-        if getSetting('%s.enabled' % flavor) == 'true':
-            return flavor
-    else:
+    if getSetting('watchlist.update.enabled') != 'true':
         return
+    flavor = getSetting('watchlist.update.flavor').lower()
+    if getSetting(f'{flavor}.enabled') == 'true':
+        return flavor
 
 
 def copy2clip(txt):
     import subprocess
     platform = sys.platform
 
-    if platform == 'win32':
-        try:
-            cmd = 'echo ' + txt.strip() + '|clip'
-            return subprocess.check_call(cmd, shell=True)
-            pass
-        except:
-            pass
-    elif platform == 'linux2':
+    if platform == 'linux2':
         try:
             from subprocess import Popen, PIPE
 
@@ -148,16 +134,19 @@ def copy2clip(txt):
             p.communicate(input=txt)
         except:
             pass
-    else:
-        pass
-    pass
+    elif platform == 'win32':
+        try:
+            cmd = f'echo {txt.strip()}|clip'
+            return subprocess.check_call(cmd, shell=True)
+        except:
+            pass
 
 
 def colorString(text, color=None):
     if color == 'default' or color == '' or color is None:
         color = 'deepskyblue'
 
-    return '[COLOR %s]%s[/COLOR]' % (color, text)
+    return f'[COLOR {color}]{text}[/COLOR]'
 
 
 def refresh():
@@ -189,7 +178,7 @@ def lang(x):
 
 
 def addon_url(url=''):
-    return "plugin://%s/%s" % (ADDON_NAME, url)
+    return f"plugin://{ADDON_NAME}/{url}"
 
 
 def get_plugin_url():
@@ -205,9 +194,7 @@ def get_plugin_params():
 def keyboard(text):
     keyboard = xbmc.Keyboard("", text, False)
     keyboard.doModal()
-    if keyboard.isConfirmed():
-        return keyboard.getText()
-    return None
+    return keyboard.getText() if keyboard.isConfirmed() else None
 
 
 def closeAllDialogs():
@@ -284,9 +271,8 @@ def xbmc_add_player_item(name, url, art={}, info={}, draw_cm=None, bulk_add=Fals
     liz.addContextMenuItems(cm)
     if bulk_add:
         return (u, liz, False)
-    else:
-        ok = xbmcplugin.addDirectoryItem(handle=HANDLE, url=u, listitem=liz, isFolder=False)
-        return ok
+    ok = xbmcplugin.addDirectoryItem(handle=HANDLE, url=u, listitem=liz, isFolder=False)
+    return ok
 
 
 def xbmc_add_dir(name, url, art={}, info={}, draw_cm=None):
@@ -346,8 +332,8 @@ def bulk_draw_items(video_data, draw_cm=None, bulk_add=True):
 
 
 def artPath():
-    THEMES = ['coloured', 'white']
     if condVisibility('System.HasAddon(script.otaku.themepak)'):
+        THEMES = ['coloured', 'white']
         return os.path.join(
             xbmcaddon.Addon('script.otaku.themepak').getAddonInfo('path'),
             'art',

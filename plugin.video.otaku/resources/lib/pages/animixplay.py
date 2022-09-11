@@ -20,7 +20,7 @@ class sources(BrowserBase):
         return all_results
 
     def _process_animixplay(self, slug, show_id, episode):
-        url = "https://animixplay.com/%s" % (requests.utils.unquote(slug))
+        url = f"https://animixplay.com/{requests.utils.unquote(slug)}"
         url = str(url)
         result = database.get(self._get_animixplay_link, 12, url)
         if not result:
@@ -58,7 +58,7 @@ class sources(BrowserBase):
         if '/v2/' in url or '/v4/' in url:
             url_id = str.encode(url.split("/")[4])
             url_id = base64.b64encode(url_id).decode()
-            post_id = ('NaN{}N4CP9Eb6laO9N'.format(url_id)).encode()
+            post_id = f'NaN{url_id}N4CP9Eb6laO9N'.encode()
             post_id = base64.b64encode(post_id).decode()
             title = soup.find('span', {'class': 'animetitle'}).get_text()
             data_id = 'id2' if '/v4/' in url else 'id'
@@ -83,18 +83,20 @@ class sources(BrowserBase):
                 # Has elaborate list for all metadata on episodes.
                 data = []
                 for i in data:
-                    info_dict = i.get('src', None)
-                    # Looks like mp4 is always first in the list
-                    # Sometimes it returns None
-                    if info_dict:
-                        srcs = []
-                        for k in info_dict:
-                            if k['type'] == 'mp4':
-                                srcs.append({'file': k.get('file', ''), 'flavor': k.get('lang', ''), 'res': k.get('resolution', '')})
+                    if info_dict := i.get('src', None):
+                        srcs = [
+                            {
+                                'file': k.get('file', ''),
+                                'flavor': k.get('lang', ''),
+                                'res': k.get('resolution', ''),
+                            }
+                            for k in info_dict
+                            if k['type'] == 'mp4'
+                        ]
 
                         data.append(srcs)
-                    # else:
-                    #     episodes.append('')
+                                # else:
+                                #     episodes.append('')
                 if int(episode) > len(data):
                     return []
 
@@ -145,10 +147,8 @@ class sources(BrowserBase):
             return {'episodes': None}
         loadmore = episodes_total
         s = requests.Session()
-        for i in range(_range):
+        for _ in range(_range):
             data = (s.post('https://animixplay.com/e5/dZ40LAuJHZjuiWX',
                     data={'id': url.split('/')[-1], 'loadmore': loadmore}))
             loadmore += 12
-            # time.sleep(1)
-
         return data.json()['epstream']['stape']

@@ -9,4 +9,4 @@ if __name__ == '__main__':
     path = path.replace('play', 'rescrape_play')
     path += '?=null'
 
-    xbmc.executebuiltin('PlayMedia(%s)' % path)
+    xbmc.executebuiltin(f'PlayMedia({path})')

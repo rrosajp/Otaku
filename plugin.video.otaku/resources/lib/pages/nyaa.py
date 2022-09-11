@@ -16,17 +16,17 @@ from six.moves import filter
 
 class sources(BrowserBase):
     def _parse_anime_view(self, res):
-        info = {}
-        url = '{}/{}'.format(res['debrid_provider'], res['hash'])
+        url = f"{res['debrid_provider']}/{res['hash']}"
         name = res['name']
         image = 'DefaultVideo.png'
-        info['title'] = name
-        info['mediatype'] = 'tvshow'
-        return utils.allocate_item(name, "play_latest/" + str(url), False, image, info)
+        info = {'title': name, 'mediatype': 'tvshow'}
+        return utils.allocate_item(name, f"play_latest/{url}", False, image, info)
 
     def _parse_nyaa_episode_view(self, res, episode):
-        source = {
-            'release_title': res['name'].encode('utf-8') if six.PY2 else res['name'],
+        return {
+            'release_title': res['name'].encode('utf-8')
+            if six.PY2
+            else res['name'],
             'hash': res['hash'],
             'type': 'torrent',
             'quality': self.get_quality(res['name']),
@@ -35,14 +35,14 @@ class sources(BrowserBase):
             'episode_re': episode,
             'size': res['size'],
             'info': source_utils.getInfo(res['name']),
-            'lang': source_utils.getAudio_lang(res['name'])
+            'lang': source_utils.getAudio_lang(res['name']),
         }
 
-        return source
-
     def _parse_nyaa_cached_episode_view(self, res, episode):
-        source = {
-            'release_title': res['name'].encode('utf-8') if six.PY2 else res['name'],
+        return {
+            'release_title': res['name'].encode('utf-8')
+            if six.PY2
+            else res['name'],
             'hash': res['hash'],
             'type': 'torrent',
             'quality': self.get_quality(res['name']),
@@ -51,10 +51,8 @@ class sources(BrowserBase):
             'episode_re': episode,
             'size': res['size'],
             'info': source_utils.getInfo(res['name']),
-            'lang': source_utils.getAudio_lang(res['name'])
+            'lang': source_utils.getAudio_lang(res['name']),
         }
-
-        return source
 
     def get_quality(self, release_title):
         release_title = release_title.lower()
@@ -81,8 +79,7 @@ class sources(BrowserBase):
         return [utils.allocate_item(name, base_url % next_page, True, 'next.png')]
 
     def _json_request(self, url, data=''):
-        response = json.loads(self._get_request(url, data))
-        return response
+        return json.loads(self._get_request(url, data))
 
     def _process_anime_view(self, url, data, base_plugin_url, page):
         json_resp = self._get_request(url)
@@ -104,9 +101,7 @@ class sources(BrowserBase):
             torrent['hash'] = re.findall(r'btih:(.*?)(?:&|$)', torrent['magnet'])[0]
 
         cache_list = TorrentCacheCheck().torrentCacheCheck(list_)
-        all_results = list(map(self._parse_anime_view, cache_list))
-
-        return all_results
+        return list(map(self._parse_anime_view, cache_list))
 
     def _process_nyaa_episodes(self, url, episode, season=None):
         json_resp = requests.get(url).text
@@ -135,7 +130,7 @@ class sources(BrowserBase):
 
         filtered_list = []
 
-        for idx, torrent in enumerate(list_):
+        for torrent in list_:
             torrent['hash'] = re.findall(r'btih:(.*?)(?:&|$)', torrent['magnet'])[0]
 
             if season:
@@ -148,9 +143,7 @@ class sources(BrowserBase):
                     regex_ep_range = r'\s\d+-\d+|\s\d+~\d+|\s\d+\s-\s\d+|\s\d+\s~\s\d+'
                     rex_ep_range = re.compile(regex_ep_range)
 
-                    if rex_ep_range.search(title):
-                        pass
-                    else:
+                    if not rex_ep_range.search(title):
                         continue
 
                 match = rex.findall(title)
@@ -165,8 +158,7 @@ class sources(BrowserBase):
         cache_list = TorrentCacheCheck().torrentCacheCheck(filtered_list)
         cache_list = sorted(cache_list, key=lambda k: k['downloads'], reverse=True)
         mapfunc = partial(self._parse_nyaa_episode_view, episode=episode)
-        all_results = list(map(mapfunc, cache_list))
-        return all_results
+        return list(map(mapfunc, cache_list))
 
     def _process_nyaa_backup(self, url, anilist_id, _zfill, episode='', rescrape=False):
         json_resp = requests.get(url).text
@@ -198,8 +190,7 @@ class sources(BrowserBase):
         cache_list = sorted(cache_list, key=lambda k: k['downloads'], reverse=True)
 
         mapfunc = partial(self._parse_nyaa_episode_view, episode=episode)
-        all_results = list(map(mapfunc, cache_list))
-        return all_results
+        return list(map(mapfunc, cache_list))
 
     def _process_nyaa_movie(self, url, episode):
         json_resp = requests.get(url).text
@@ -221,20 +212,18 @@ class sources(BrowserBase):
              }
             for magnet, name, size, downloads in search_results]
 
-        for idx, torrent in enumerate(list_):
+        for torrent in list_:
             torrent['hash'] = re.findall(r'btih:(.*?)(?:&|$)', torrent['magnet'])[0]
 
         cache_list = TorrentCacheCheck().torrentCacheCheck(list_)
         cache_list = sorted(cache_list, key=lambda k: k['downloads'], reverse=True)
         mapfunc = partial(self._parse_nyaa_episode_view, episode=episode)
-        all_results = list(map(mapfunc, cache_list))
-        return all_results
+        return list(map(mapfunc, cache_list))
 
     def _process_cached_sources(self, list_, episode):
         cache_list = TorrentCacheCheck().torrentCacheCheck(list_)
         mapfunc = partial(self._parse_nyaa_cached_episode_view, episode=episode)
-        all_results = list(map(mapfunc, cache_list))
-        return all_results
+        return list(map(mapfunc, cache_list))
 
     def get_latest(self, page=1):
         url = "https://nyaa.si/?f=0&c=1_2&q="
@@ -260,12 +249,9 @@ class sources(BrowserBase):
         if media_type == 'movie':
             return self._get_movie_sources(query, anilist_id, episode)
 
-        sources = self._get_episode_sources(query, anilist_id, episode, status, rescrape)
-
-        if not sources:
-            sources = self._get_episode_sources_backup(query, anilist_id, episode)
-
-        return sources
+        return self._get_episode_sources(
+            query, anilist_id, episode, status, rescrape
+        ) or self._get_episode_sources_backup(query, anilist_id, episode)
 
     def _get_episode_sources(self, show, anilist_id, episode, status, rescrape):
         if rescrape:
@@ -285,13 +271,14 @@ class sources(BrowserBase):
             season = str(season['season']).zfill(2)
             query += '|"S%sE%s "' % (season, episode.zfill(2))
 
-        url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=downloads&o=desc" % query
+        url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=downloads&o=desc"
 
         if status == 'FINISHED':
             query = '%s "Batch"|"Complete Series"' % (show)
 
-            episodes = ast.literal_eval(database.get_show(anilist_id)['kodi_meta'])['episodes']
-            if episodes:
+            if episodes := ast.literal_eval(
+                database.get_show(anilist_id)['kodi_meta']
+            )['episodes']:
                 query += '|"01-{0}"|"01~{0}"|"01 - {0}"|"01 ~ {0}"'.format(episodes)
 
             if season:
@@ -300,12 +287,15 @@ class sources(BrowserBase):
 
             query += '|"- %s"' % (episode.zfill(2))
 
-            url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=seeders&&o=desc" % query
+            url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=seeders&&o=desc"
 
         return self._process_nyaa_episodes(url, episode.zfill(2), season)
 
     def _get_episode_sources_backup(self, db_query, anilist_id, episode):
-        show = requests.get("https://kaito-title.firebaseio.com/%s.json" % anilist_id).json()
+        show = requests.get(
+            f"https://kaito-title.firebaseio.com/{anilist_id}.json"
+        ).json()
+
 
         if not show:
             return []
@@ -315,52 +305,51 @@ class sources(BrowserBase):
             _zfill = show.get('zfill', 2)
             episode = episode.zfill(_zfill)
             query = requests.utils.quote(query)
-            url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=downloads&o=desc" % query
+            url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=downloads&o=desc"
             return self._process_nyaa_backup(url, anilist_id, _zfill, episode)
 
         try:
             kodi_meta = ast.literal_eval(database.get_show(anilist_id)['kodi_meta'])
-            kodi_meta['query'] = db_query + '|{}'.format(show)
+            kodi_meta['query'] = db_query + f'|{show}'
             database.update_kodi_meta(anilist_id, kodi_meta)
         except:
             pass
 
         query = '%s "- %s"' % (show.encode('utf-8') if six.PY2 else show, episode.zfill(2))
-        season = database.get_season_list(anilist_id)
-        if season:
+        if season := database.get_season_list(anilist_id):
             season = str(season['season']).zfill(2)
             query += '|"S%sE%s"' % (season, episode.zfill(2))
 
-        url = "https://nyaa.si/?f=0&c=1_2&q=%s" % query
+        url = f"https://nyaa.si/?f=0&c=1_2&q={query}"
         return self._process_nyaa_episodes(url, episode)
 
     def _get_episode_sources_pack(self, show, anilist_id, episode):
         query = '%s "Batch"|"Complete Series"' % (show)
 
-        episodes = ast.literal_eval(database.get_show(anilist_id)['kodi_meta'])['episodes']
-        if episodes:
+        if episodes := ast.literal_eval(
+            database.get_show(anilist_id)['kodi_meta']
+        )['episodes']:
             query += '|"01-{0}"|"01~{0}"|"01 - {0}"|"01 ~ {0}"'.format(episodes)
 
-        season = database.get_season_list(anilist_id)
-        if season:
+        if season := database.get_season_list(anilist_id):
             season = season['season']
             query += '|"S{0}"|"Season {0}"'.format(season)
 
-        url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=seeders&&o=desc" % query
+        url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=seeders&&o=desc"
         return self._process_nyaa_backup(url, anilist_id, 2, episode.zfill(2), True)
 
     def _get_movie_sources(self, query, anilist_id, episode):
         query = requests.utils.quote(query)
-        url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=downloads&o=desc" % query
-        sources = self._process_nyaa_movie(url, '1')
-
-        if not sources:
-            sources = self._get_movie_sources_backup(anilist_id)
-
-        return sources
+        url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=downloads&o=desc"
+        return self._process_nyaa_movie(
+            url, '1'
+        ) or self._get_movie_sources_backup(anilist_id)
 
     def _get_movie_sources_backup(self, anilist_id, episode='1'):
-        show = requests.get("https://kimetsu-title.firebaseio.com/%s.json" % anilist_id).json()
+        show = requests.get(
+            f"https://kimetsu-title.firebaseio.com/{anilist_id}.json"
+        ).json()
+
 
         if not show:
             return []
@@ -368,11 +357,11 @@ class sources(BrowserBase):
         if 'general_title' in show:
             query = show['general_title']
             query = requests.utils.quote(query)
-            url = "https://nyaa.si/?f=0&c=1_2&q=%s&s=downloads&o=desc" % query
+            url = f"https://nyaa.si/?f=0&c=1_2&q={query}&s=downloads&o=desc"
             return self._process_nyaa_backup(url, episode)
 
         query = requests.utils.quote(show)
-        url = "https://nyaa.si/?f=0&c=1_2&q=%s" % query
+        url = f"https://nyaa.si/?f=0&c=1_2&q={query}"
         return self._process_nyaa_movie(url, episode)
 
 
@@ -405,8 +394,7 @@ class TorrentCacheCheck:
         for i in self.threads:
             i.join()
 
-        cachedList = self.realdebridCached + self.premiumizeCached + self.all_debridCached
-        return cachedList
+        return self.realdebridCached + self.premiumizeCached + self.all_debridCached
 
     def all_debrid_worker(self, torrent_list):
 
@@ -434,7 +422,7 @@ class TorrentCacheCheck:
 
         hash_list = [i['hash'] for i in torrent_list]
 
-        if len(hash_list) == 0:
+        if not hash_list:
             return
         api = real_debrid.RealDebrid()
         realDebridCache = api.checkHash(hash_list)
@@ -446,8 +434,6 @@ class TorrentCacheCheck:
                 if len(realDebridCache[i['hash']]['rd']) >= 1:
                     i['debrid_provider'] = 'real_debrid'
                     cache_list.append(i)
-                else:
-                    pass
             except KeyError:
                 pass
 
@@ -455,16 +441,13 @@ class TorrentCacheCheck:
 
     def premiumizeWorker(self, torrent_list):
         hash_list = [i['hash'] for i in torrent_list]
-        if len(hash_list) == 0:
+        if not hash_list:
             return
         premiumizeCache = premiumize.Premiumize().hash_check(hash_list)
         premiumizeCache = premiumizeCache['response']
         cache_list = []
-        count = 0
-        for i in torrent_list:
+        for count, i in enumerate(torrent_list):
             if premiumizeCache[count] is True:
                 i['debrid_provider'] = 'premiumize'
                 cache_list.append(i)
-            count += 1
-
         self.premiumizeCached = cache_list

@@ -34,7 +34,10 @@ class sources(BrowserBase):
 
         filenames = [re.sub(r'\[.*?\]\s*', '', i['filename']) for i in torrents]
         filenames_query = ','.join(filenames)
-        resp = requests.get('https://armkai.vercel.app/api/fuzzypacks?dict={}&match={}'.format(filenames_query, query)).json()
+        resp = requests.get(
+            f'https://armkai.vercel.app/api/fuzzypacks?dict={filenames_query}&match={query}'
+        ).json()
+
 
         for i in resp:
             torrent = torrents[i]
@@ -49,8 +52,8 @@ class sources(BrowserBase):
                        [selected for selected in torrent_info['files'] if selected['selected'] == 1]):
                 continue
 
-            for f_index, torrent_file in enumerate([cloud_file for cloud_file in torrent_info['files']
-                                                    if cloud_file['selected'] == 1]):
+            for f_index, torrent_file in enumerate(cloud_file for cloud_file in torrent_info['files']
+                                                            if cloud_file['selected'] == 1):
 
                 if source_utils.get_best_match('path', [torrent_file], episode):
                     self.cloud_files.append(
@@ -73,7 +76,10 @@ class sources(BrowserBase):
 
         filenames = [re.sub(r'\[.*?\]\s*', '', i['name']) for i in cloud_items]
         filenames_query = ','.join(filenames)
-        resp = requests.get('https://armkai.vercel.app/api/fuzzypacks?dict={}&match={}'.format(filenames_query, query)).json()
+        resp = requests.get(
+            f'https://armkai.vercel.app/api/fuzzypacks?dict={filenames_query}&match={query}'
+        ).json()
+
 
         for i in resp:
             torrent = cloud_items[i]

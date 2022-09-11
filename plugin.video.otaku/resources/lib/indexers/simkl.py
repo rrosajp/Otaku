@@ -18,7 +18,7 @@ class SIMKLAPI:
         if url.startswith("/"):
             url = url[1:]
 
-        return "%s/%s" % (self.baseUrl[:-1], url)
+        return f"{self.baseUrl[:-1]}/{url}"
 
     def _json_request(self, url, data=''):
         response = requests.get(url, data)
@@ -26,18 +26,20 @@ class SIMKLAPI:
         return response
 
     def _parse_episode_view(self, res, anilist_id, poster, fanart, eps_watched, filter_lang):
-        url = "%s/%s/" % (anilist_id, res['episode'])
+        url = f"{anilist_id}/{res['episode']}/"
 
         if filter_lang:
             url += filter_lang
 
         name = 'Ep. %d (%s)' % (res['episode'], res.get('title'))
         image = self.imagePath % res['img']
-        info = {}
-        info['plot'] = res['description']
-        info['title'] = res['title']
-        info['season'] = 1
-        info['episode'] = res['episode']
+        info = {
+            'plot': res['description'],
+            'title': res['title'],
+            'season': 1,
+            'episode': res['episode'],
+        }
+
         try:
             if int(eps_watched) >= res['episode']:
                 info['playcount'] = 1
@@ -49,8 +51,9 @@ class SIMKLAPI:
             pass
         info['tvshowtitle'] = ast.literal_eval(database.get_show(anilist_id)['kodi_meta'])['title_userPreferred']
         info['mediatype'] = 'episode'
-        parsed = utils.allocate_item(name, "play/" + str(url), False, image, info, fanart, poster)
-        return parsed
+        return utils.allocate_item(
+            name, f"play/{str(url)}", False, image, info, fanart, poster
+        )
 
     def _process_episode_view(self, anilist_id, json_resp, filter_lang, base_plugin_url, page):
         kodi_meta = ast.literal_eval(database.get_show(anilist_id)['kodi_meta'])
@@ -60,9 +63,7 @@ class SIMKLAPI:
         # json_resp = filter(lambda x: x['type'] == 'episode', json_resp)
         json_resp = [x for x in json_resp if x['type'] == 'episode']
         mapfunc = partial(self._parse_episode_view, anilist_id=anilist_id, poster=poster, fanart=fanart, eps_watched=eps_watched, filter_lang=filter_lang)
-        all_results = list(map(mapfunc, json_resp))
-
-        return all_results
+        return list(map(mapfunc, json_resp))
 
     def get_anime(self, anilist_id, filter_lang):
         show = database.get_show(anilist_id)
@@ -93,9 +94,8 @@ class SIMKLAPI:
         data = {
             'extended': 'full',
         }
-        url = self._to_url("anime/episodes/%s" % str(simkl_id))
-        json_resp = self._json_request(url, data)
-        return json_resp
+        url = self._to_url(f"anime/episodes/{str(simkl_id)}")
+        return self._json_request(url, data)
 
     def get_episodes(self, anilist_id, filter_lang=None, page=1):
         episodes = database.get(self._get_episodes, 6, anilist_id)
@@ -107,11 +107,7 @@ class SIMKLAPI:
             "client_id": self.ClientID
         }
         json_resp = self._json_request("https://api.simkl.com/search/anime", data)
-        if not json_resp:
-            return []
-
-        anime_id = json_resp[0]['ids']['simkl_id']
-        return anime_id
+        return json_resp[0]['ids']['simkl_id'] if json_resp else []
 
     def get_anime_id(self, mal_id):
         data = {
@@ -120,13 +116,11 @@ class SIMKLAPI:
         }
         url = self._to_url("search/id")
         json_resp = self._json_request(url, data)
-        if not json_resp:
-            return []
-
-        anime_id = json_resp[0]['ids'].get('simkl')
-        return anime_id
+        return json_resp[0]['ids'].get('simkl') if json_resp else []
 
     def get_mal_id(self, anilist_id):
-        arm_resp = self._json_request("https://arm2.vercel.app/api/search?type=anilist&id={}".format(anilist_id))
-        mal_id = arm_resp["mal"]
-        return mal_id
+        arm_resp = self._json_request(
+            f"https://arm2.vercel.app/api/search?type=anilist&id={anilist_id}"
+        )
+
+        return arm_resp["mal"]

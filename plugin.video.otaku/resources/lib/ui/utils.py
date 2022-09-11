@@ -3,8 +3,7 @@ from resources.lib.ui import control
 
 
 def allocate_item(name, url, is_dir=False, image='', info='', fanart=None, poster=None, cast=[]):
-    new_res = {}
-    new_res['is_dir'] = is_dir
+    new_res = {'is_dir': is_dir}
     if image and '/' not in image:
         image = os.path.join(control.artPath(), image)
     if fanart and '/' not in fanart:

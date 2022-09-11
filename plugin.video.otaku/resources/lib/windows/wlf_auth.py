@@ -58,7 +58,7 @@ class WatchlistFlavorAuth(BaseWindow):
             res['authvar'] = self.getControl(1000).getText()
 
         for _id, value in list(res.items()):
-            control.setSetting('%s.%s' % (self.flavor, _id), value)
+            control.setSetting(f'{self.flavor}.{_id}', value)
 
         self.authorized = True
         self.close()
@@ -73,18 +73,20 @@ class AltWatchlistFlavorAuth:
         res = {}
         dialog = control.showDialog
         if self.flavor == 'anilist':
-            dialog.textviewer(control.ADDON_NAME + ': AniList',
-                              '{}\n{}\n{}'.format(control.lang(40105),
-                                                  control.lang(40106).replace('below', 'in the input dialog that will popup once you close this'),
-                                                  control.lang(40110)))
+            dialog.textviewer(
+                f'{control.ADDON_NAME}: AniList',
+                f"{control.lang(40105)}\n{control.lang(40106).replace('below', 'in the input dialog that will popup once you close this')}\n{control.lang(40110)}",
+            )
+
 
             res['username'] = dialog.input('Enter AniList username', type=control.INPUT_ALPHANUM)
             res['token'] = dialog.input('Enter AniList token', type=control.INPUT_ALPHANUM)
         else:
-            dialog.textviewer(control.ADDON_NAME + ': MyAnimeList',
-                              '{}\n{}\n{}'.format(control.lang(40100),
-                                                  control.lang(40101).replace('below', 'in the input dialog that will popup once you close this'),
-                                                  control.lang(40110)))
+            dialog.textviewer(
+                f'{control.ADDON_NAME}: MyAnimeList',
+                f"{control.lang(40100)}\n{control.lang(40101).replace('below', 'in the input dialog that will popup once you close this')}\n{control.lang(40110)}",
+            )
+
 
             res['authvar'] = dialog.input('Enter MAL auth url', type=control.INPUT_ALPHANUM)
 
@@ -93,7 +95,7 @@ class AltWatchlistFlavorAuth:
                 if not value:
                     raise Exception
 
-                control.setSetting('%s.%s' % (self.flavor, _id), value)
+                control.setSetting(f'{self.flavor}.{_id}', value)
                 self.authorized = True
         except:
             pass
