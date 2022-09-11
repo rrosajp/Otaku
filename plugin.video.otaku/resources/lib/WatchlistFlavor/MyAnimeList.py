@@ -33,14 +33,12 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         self._token = res['access_token']
         user = requests.get('https://api.myanimelist.net/v2/users/@me?fields=name', headers=self.__headers()).json()
 
-        login_data = {
+        return {
             'token': res['access_token'],
             'refresh': res['refresh_token'],
             'expiry': str(time.time() + int(res['expires_in'])),
-            'username': user['name']
+            'username': user['name'],
         }
-
-        return login_data
 
     def refresh_token(self, control):
         oauth_url = 'https://myanimelist.net/v1/oauth2/token'
@@ -69,10 +67,11 @@ class MyAnimeListWLF(WatchlistFlavorBase):
     def _base_watchlist_view(self, res):
         base = {
             "name": res[0],
-            "url": 'watchlist_status_type/%s/%s' % (self._NAME, res[1]),
-            "image": res[0].lower() + '.png',
+            "url": f'watchlist_status_type/{self._NAME}/{res[1]}',
+            "image": f'{res[0].lower()}.png',
             "plot": '',
         }
+
 
         return self._parse_view(base)
 
@@ -82,7 +81,7 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         return all_results
 
     def __mal_statuses(self):
-        statuses = [
+        return [
             ("Next Up", "watching?next_up=true"),
             ("Currently Watching", "watching"),
             ("Completed", "completed"),
@@ -91,8 +90,6 @@ class MyAnimeListWLF(WatchlistFlavorBase):
             ("Plan to Watch", "plan_to_watch"),
             ("All Anime", ""),
         ]
-
-        return statuses
 
     def get_watchlist_status(self, status, next_up, offset=0, page=1):
         fields = [
@@ -134,9 +131,11 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         results = self._get_request(url, headers=self.__headers(), params=params)
         results = results.json()['data'][0]['node']['my_list_status']
 
-        anime_entry = {}
-        anime_entry['eps_watched'] = results['num_episodes_watched']
-        anime_entry['status'] = results['status'].title()
+        anime_entry = {
+            'eps_watched': results['num_episodes_watched'],
+            'status': results['status'].title(),
+        }
+
         anime_entry['score'] = results['score']
 
         return anime_entry
@@ -207,14 +206,17 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         info['mediatype'] = 'tvshow'
 
         base = {
-            "name": '%s - %s/%s' % (res['node']["title"], res['list_status']["num_episodes_watched"], res['node']["num_episodes"]),
-            "url": "watchlist_to_ep/%s//%s" % (res['node']['id'], res['list_status']["num_episodes_watched"]),
-            "image": res['node']['main_picture'].get('large', res['node']['main_picture']['medium']),
+            "name": f"""{res['node']["title"]} - {res['list_status']["num_episodes_watched"]}/{res['node']["num_episodes"]}""",
+            "url": f"""watchlist_to_ep/{res['node']['id']}//{res['list_status']["num_episodes_watched"]}""",
+            "image": res['node']['main_picture'].get(
+                'large', res['node']['main_picture']['medium']
+            ),
             "plot": info,
         }
 
+
         if res['node']['media_type'] == 'movie' and res['node']["num_episodes"] == 1:
-            base['url'] = "watchlist_to_movie/%s" % (res['node']['id'])
+            base['url'] = f"watchlist_to_movie/{res['node']['id']}"
             base['plot']['mediatype'] = 'movie'
             return self._parse_view(base, False)
 
@@ -225,7 +227,7 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         progress = res['list_status']["num_episodes_watched"]
         next_up = progress + 1
         episode_count = res['node']["num_episodes"]
-        title = '%s - %s/%s' % (res['node']["title"], next_up, episode_count)
+        title = f"""{res['node']["title"]} - {next_up}/{episode_count}"""
         poster = image = res['node']['main_picture'].get('large', res['node']['main_picture']['medium'])
         plot = None
 
@@ -233,60 +235,57 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         if next_up_meta:
             url = 'play/%d/%d/' % (anilist_id, next_up)
             if next_up_meta.get('title'):
-                title = '%s - %s' % (title, next_up_meta.get('title'))
+                title = f"{title} - {next_up_meta.get('title')}"
             if next_up_meta.get('image'):
                 image = next_up_meta.get('image')
             plot = next_up_meta.get('plot')
 
-        info = {}
+        info = {
+            'episode': next_up,
+            'title': title,
+            'tvshowtitle': res['node']['title'],
+            'duration': res['node']['average_episode_duration'],
+            'plot': plot,
+            'mediatype': 'episode',
+        }
 
-        info['episode'] = next_up
-
-        info['title'] = title
-
-        info['tvshowtitle'] = res['node']['title']
-
-        info['duration'] = res['node']['average_episode_duration']
-
-        info['plot'] = plot
-
-        info['mediatype'] = 'episode'
 
         base = {
             "name": title,
-            "url": "watchlist_to_ep/%s//%s" % (res['node']['id'], res['list_status']["num_episodes_watched"]),
+            "url": f"""watchlist_to_ep/{res['node']['id']}//{res['list_status']["num_episodes_watched"]}""",
             "image": image,
             "plot": info,
             "fanart": image,
             "poster": poster,
         }
 
+
         if next_up_meta:
             base['url'] = url
             return self._parse_view(base, False)
 
         if res['node']['media_type'] == 'movie' and res['node']["num_episodes"] == 1:
-            base['url'] = "watchlist_to_movie/%s" % (res['node']['id'])
+            base['url'] = f"watchlist_to_movie/{res['node']['id']}"
             base['plot']['mediatype'] = 'movie'
             return self._parse_view(base, False)
 
         return self._parse_view(base)
 
     def __headers(self):
-        header = {
-            'Authorization': "Bearer {}".format(self._token),
-            'Content-Type': 'application/x-www-form-urlencoded'
+        return {
+            'Authorization': f"Bearer {self._token}",
+            'Content-Type': 'application/x-www-form-urlencoded',
         }
 
-        return header
-
     def _kitsu_to_mal_id(self, kitsu_id):
-        arm_resp = self._get_request("https://arm.now.sh/api/v1/search?type=kitsu&id=" + kitsu_id)
+        arm_resp = self._get_request(
+            f"https://arm.now.sh/api/v1/search?type=kitsu&id={kitsu_id}"
+        )
+
         if arm_resp.status_code != 200:
             raise Exception("AnimeID not found")
 
-        mal_id = arm_resp.json()["services"]["mal"]
-        return mal_id
+        return arm_resp.json()["services"]["mal"]
 
     def watchlist_update(self, anilist_id, episode):
         mal_id = self._get_mapping_id(anilist_id, 'mal_id')
@@ -294,7 +293,7 @@ class MyAnimeListWLF(WatchlistFlavorBase):
         if not mal_id:
             return
 
-        url = self._to_url("anime/%s/my_list_status" % (mal_id))
+        url = self._to_url(f"anime/{mal_id}/my_list_status")
         data = {
             'num_watched_episodes': int(episode)
         }

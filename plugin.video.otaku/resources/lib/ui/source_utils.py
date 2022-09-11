@@ -159,7 +159,7 @@ def get_best_match(dict_key, dictionary_list, episode):
 
     files = [i for i in files if len(i['regex_matches']) > 0]
 
-    if len(files) == 0:
+    if not files:
         return None
 
     files = sorted(files, key=lambda x: len(' '.join(list(x['regex_matches'][0]))), reverse=True)
@@ -202,14 +202,14 @@ def is_file_ext_valid(file_name):
     try:
         COMMON_VIDEO_EXTENSIONS = xbmc.getSupportedMedia('video').split('|')
 
-        COMMON_VIDEO_EXTENSIONS = [i for i in COMMON_VIDEO_EXTENSIONS if i != '' and i != '.zip']
+        COMMON_VIDEO_EXTENSIONS = [
+            i for i in COMMON_VIDEO_EXTENSIONS if i not in ['', '.zip']
+        ]
+
     except:
         pass
 
-    if '.' + file_name.split('.')[-1] not in COMMON_VIDEO_EXTENSIONS:
-        return False
-
-    return True
+    return '.' + file_name.split('.')[-1] in COMMON_VIDEO_EXTENSIONS
 
 
 def filter_single_episode(episode, release_title):
@@ -220,21 +220,23 @@ def filter_single_episode(episode, release_title):
         playList = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
         info = playList[playList.getposition()].getVideoInfoTag()
         season = str(info.getSeason()).zfill(2)
-        season = 's' + season
+        season = f's{season}'
     except:
         season = ''
 
     filter_episode = [
-        '%se%s' % (season, episode.zfill(3)),
-        '%se%s' % (season, episode.zfill(2)),
+        f'{season}e{episode.zfill(3)}',
+        f'{season}e{episode.zfill(2)}',
         episode.zfill(3),
-        episode.zfill(2)
+        episode.zfill(2),
     ]
 
-    if next((string for string in filter_episode if string in filename), False):
-        return True
 
-    return False
+    return bool(
+        next(
+            (string for string in filter_episode if string in filename), False
+        )
+    )
 
 # def run_once(f):
 #     def wrapper(*args, **kwargs):

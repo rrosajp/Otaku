@@ -24,13 +24,16 @@ class sources(BrowserBase):
         slugs = [
             item.find('a').get('href').split('/')[-1]
             for item in items
-            if (item.text.strip() + ' ').startswith(title + ' ')
-            or (item.text.strip().replace(' - ', ' ') + ' ').startswith(title + ' ')
+            if f'{item.text.strip()} '.startswith(f'{title} ')
+            or (item.text.strip().replace(' - ', ' ') + ' ').startswith(
+                f'{title} '
+            )
         ]
+
         if not slugs:
             slugs = database.get(get_backup, 168, anilist_id, 'Gogoanime')
-            if not slugs:
-                return []
+        if not slugs:
+            return []
         slugs = list(slugs.keys()) if isinstance(slugs, dict) else slugs
         mapfunc = partial(self._process_gogo, show_id=anilist_id, episode=episode)
         all_results = list(map(mapfunc, slugs))
@@ -46,8 +49,7 @@ class sources(BrowserBase):
         if r.status_code > 400:
             url = 'https://gogoanime.tel/category/{0}'.format(slug)
             html = requests.get(url, headers=hdrs).text
-            mid = re.findall(r'value="([^"]+)"\s*id="movie_id"', html)
-            if mid:
+            if mid := re.findall(r'value="([^"]+)"\s*id="movie_id"', html):
                 params = {'ep_start': episode,
                           'ep_end': episode,
                           'id': mid[0],
@@ -55,8 +57,7 @@ class sources(BrowserBase):
                 eurl = 'https://ajax.gogo-load.com/ajax/load-list-episode'
                 r2 = requests.get(eurl, headers=hdrs, params=params)
                 soup2 = BeautifulSoup(r2.text, 'html.parser')
-                eslug = soup2.find('a')
-                if eslug:
+                if eslug := soup2.find('a'):
                     eslug = eslug.get('href').strip()
                     url = "https://gogoanime.tel{0}".format(eslug)
                     r = requests.get(url, headers=hdrs)
@@ -70,18 +71,19 @@ class sources(BrowserBase):
             type_ = None
             quality = 'NA'
 
-            if server == 'xstreamcdn':
+            if (
+                server == 'xstreamcdn'
+                or server != 'vidcdn'
+                and server != 'mp4upload'
+                and server == 'doodstream'
+            ):
                 type_ = 'embed'
                 quality = '1080p'
             elif server == 'vidcdn':
                 type_ = 'embed'
-                link = 'https:' + link
+                link = f'https:{link}'
             elif server == 'mp4upload':
                 type_ = 'embed'
-            elif server == 'doodstream':
-                type_ = 'embed'
-                quality = '1080p'
-
             if not type_:
                 continue
 
@@ -112,16 +114,13 @@ class sources(BrowserBase):
         result = requests.get(url).text
         soup = BeautifulSoup(result, 'html.parser')
         animes = soup.find_all('div', {'class': 'img'})
-        all_results = list(map(self._parse_latest_view, animes))
-        return all_results
+        return list(map(self._parse_latest_view, animes))
 
     def _parse_latest_view(self, res):
         res = res.a
-        info = {}
         slug, episode = (res['href'][1:]).rsplit('-episode-')
-        url = '%s/%s' % (slug, episode)
-        name = '%s - Ep. %s' % (res['title'], episode)
+        url = f'{slug}/{episode}'
+        name = f"{res['title']} - Ep. {episode}"
         image = res.img['src']
-        info['title'] = name
-        info['mediatype'] = 'tvshow'
-        return utils.allocate_item(name, "play_gogo/" + str(url), False, image, info)
+        info = {'title': name, 'mediatype': 'tvshow'}
+        return utils.allocate_item(name, f"play_gogo/{str(url)}", False, image, info)

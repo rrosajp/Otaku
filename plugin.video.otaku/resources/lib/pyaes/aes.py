@@ -63,7 +63,7 @@ def _compact_word(word):
     return (word[0] << 24) | (word[1] << 16) | (word[2] << 8) | word[3]
 
 def _string_to_bytes(text):
-    return list(ord(c) for c in text)
+    return [ord(c) for c in text]
 
 def _bytes_to_string(binary):
     return "".join(chr(b) for b in binary)
@@ -80,9 +80,7 @@ except Exception:
 
     # Python 3 supports bytes, which is already an array of integers
     def _string_to_bytes(text):
-        if isinstance(text, bytes):
-            return text
-        return [ord(c) for c in text]
+        return text if isinstance(text, bytes) else [ord(c) for c in text]
 
     # In Python 3, we return bytes
     def _bytes_to_string(binary):
@@ -137,10 +135,10 @@ class AES(object):
         rounds = self.number_of_rounds[len(key)]
 
         # Encryption round keys
-        self._Ke = [[0] * 4 for i in xrange(rounds + 1)]
+        self._Ke = [[0] * 4 for _ in xrange(rounds + 1)]
 
         # Decryption round keys
-        self._Kd = [[0] * 4 for i in xrange(rounds + 1)]
+        self._Kd = [[0] * 4 for _ in xrange(rounds + 1)]
 
         round_key_count = (rounds + 1) * 4
         KC = len(key) // 4
@@ -228,10 +226,14 @@ class AES(object):
         result = [ ]
         for i in xrange(0, 4):
             tt = self._Ke[rounds][i]
-            result.append((self.S[(t[ i           ] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF)
-            result.append((self.S[(t[(i + s1) % 4] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
-            result.append((self.S[(t[(i + s2) % 4] >>  8) & 0xFF] ^ (tt >>  8)) & 0xFF)
-            result.append((self.S[ t[(i + s3) % 4]        & 0xFF] ^  tt       ) & 0xFF)
+            result.extend(
+                (
+                    (self.S[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF,
+                    (self.S[(t[(i + s1) % 4] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF,
+                    (self.S[(t[(i + s2) % 4] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF,
+                    (self.S[t[(i + s3) % 4] & 0xFF] ^ tt) & 0xFF,
+                )
+            )
 
         return result
 
@@ -262,10 +264,14 @@ class AES(object):
         result = [ ]
         for i in xrange(0, 4):
             tt = self._Kd[rounds][i]
-            result.append((self.Si[(t[ i           ] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF)
-            result.append((self.Si[(t[(i + s1) % 4] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF)
-            result.append((self.Si[(t[(i + s2) % 4] >>  8) & 0xFF] ^ (tt >>  8)) & 0xFF)
-            result.append((self.Si[ t[(i + s3) % 4]        & 0xFF] ^  tt       ) & 0xFF)
+            result.extend(
+                (
+                    (self.Si[(t[i] >> 24) & 0xFF] ^ (tt >> 24)) & 0xFF,
+                    (self.Si[(t[(i + s1) % 4] >> 16) & 0xFF] ^ (tt >> 16)) & 0xFF,
+                    (self.Si[(t[(i + s2) % 4] >> 8) & 0xFF] ^ (tt >> 8)) & 0xFF,
+                    (self.Si[t[(i + s3) % 4] & 0xFF] ^ tt) & 0xFF,
+                )
+            )
 
         return result
 

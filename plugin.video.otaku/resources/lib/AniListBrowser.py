@@ -37,7 +37,7 @@ class AniListBrowser():
         return [utils.allocate_item(name, base_url % next_page, True, 'next.png')]
 
     def get_season_year(self, period='current'):
-        date = datetime.datetime.today()
+        date = datetime.datetime.now()
         year = date.year
         month = date.month
         seasons = ['WINTER', 'SPRING', 'SUMMER', 'FALL']
@@ -55,9 +55,10 @@ class AniListBrowser():
             'page': page,
             'type': "ANIME",
             'season': season,
-            'year': str(year) + '%',
-            'sort': "POPULARITY_DESC"
+            'year': f'{str(year)}%',
+            'sort': "POPULARITY_DESC",
         }
+
 
         if format_in:
             variables['format'] = [format_in.upper()]
@@ -84,9 +85,10 @@ class AniListBrowser():
             'page': page,
             'type': "ANIME",
             'season': season,
-            'year': str(year) + '%',
-            'sort': "POPULARITY_DESC"
+            'year': f'{str(year)}%',
+            'sort': "POPULARITY_DESC",
         }
+
 
         if format_in:
             variables['format'] = [format_in.upper()]
@@ -108,8 +110,7 @@ class AniListBrowser():
         return self._process_anilist_view(all_time_popular, "anilist_all_time_popular/%d", page)
 
     def get_airing(self, page=1, format_in=''):
-        airing = database.get(self._get_airing, 12, page, format_in)
-        return airing
+        return database.get(self._get_airing, 12, page, format_in)
 
     def _get_airing(self, page=1, format_in=''):
         today = datetime.date.today()
@@ -128,7 +129,7 @@ class AniListBrowser():
 
         list_ = []
 
-        for i in range(0, 4):
+        for _ in range(4):
             popular = self.get_airing_res(variables, page)
             list_.append(popular)
 
@@ -231,8 +232,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Page']
-        return json_res
+        return results['data']['Page']
 
     def get_base_res(self, variables, page=1):
         query = '''
@@ -324,8 +324,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Page']
-        return json_res
+        return results['data']['Page']
 
     def get_search_res(self, variables, page=1):
         query = '''
@@ -413,8 +412,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Page']
-        return json_res
+        return results['data']['Page']
 
     def get_recommendations_res(self, variables, page=1):
         query = '''
@@ -496,8 +494,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Media']['recommendations']
-        return json_res
+        return results['data']['Media']['recommendations']
 
     def get_anilist_res(self, variables):
         query = '''
@@ -569,8 +566,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Media']
-        return json_res
+        return results['data']['Media']
 
     def get_mal_to_anilist_res(self, variables):
         query = '''
@@ -641,8 +637,7 @@ class AniListBrowser():
         if "errors" in results.keys():
             return
 
-        json_res = results['data']['Media']
-        return json_res
+        return results['data']['Media']
 
     @div_flavor
     def _process_anilist_view(self, json_res, base_plugin_url, page, dub=False):
@@ -664,8 +659,7 @@ class AniListBrowser():
         filter_json = [x for x in json_res['airingSchedules'] if x['media']['isAdult'] is False]
         ts = int(time.time())
         mapfunc = partial(self._base_airing_view, ts=ts)
-        all_results = list(map(mapfunc, filter_json))
-        return all_results
+        return list(map(mapfunc, filter_json))
 
     @div_flavor
     def _process_recommendation_view(self, json_res, base_plugin_url, page, dub=False):
@@ -714,12 +708,9 @@ class AniListBrowser():
         if not title:
             title = res.get('title').get('userPreferred')
 
-        info = {}
+        info = {'genre': res.get('genres')}
 
-        info['genre'] = res.get('genres')
-
-        desc = res.get('description')
-        if desc:
+        if desc := res.get('description'):
             desc = desc.replace('<i>', '[I]').replace('</i>', '[/I]')
             desc = desc.replace('<b>', '[B]').replace('</b>', '[/B]')
             desc = desc.replace('<br>', '[CR]')
@@ -784,21 +775,19 @@ class AniListBrowser():
         except:
             pass
 
-        dub = False
         mal_id = str(res.get('idMal', 0))
-        if mal_dub and mal_dub.get(mal_id):
-            dub = True
-
+        dub = bool(mal_dub and mal_dub.get(mal_id))
         base = {
             "name": title,
-            "url": "animes/%s/%s/" % (res['id'], res.get('idMal')),
+            "url": f"animes/{res['id']}/{res.get('idMal')}/",
             "image": res['coverImage']['extraLarge'],
             "fanart": kodi_meta.get('fanart', res['coverImage']['extraLarge']),
             "info": info,
         }
 
+
         if res['format'] == 'MOVIE' and res['episodes'] == 1:
-            base['url'] = "play_movie/%s/1/" % (res['id'])
+            base['url'] = f"play_movie/{res['id']}/1/"
             base['info']['mediatype'] = 'movie'
             return self._parse_view(base, False, dub=dub)
 
@@ -809,10 +798,8 @@ class AniListBrowser():
         airingAt_day = airingAt.strftime('%A')
         airingAt_time = airingAt.strftime('%I:%M %p')
         airing_status = 'airing' if res['airingAt'] > ts else 'aired'
-        rank = None
         rankings = res['media']['rankings']
-        if rankings and rankings[-1]['season']:
-            rank = rankings[-1]['rank']
+        rank = rankings[-1]['rank'] if rankings and rankings[-1]['season'] else None
         genres = res['media']['genres']
         if genres:
             genres = ' | '.join(genres[:3])
@@ -820,35 +807,34 @@ class AniListBrowser():
         if not title:
             title = res['media']['title']['userPreferred']
 
-        base = {
+        return {
             'release_title': title,
             'poster': res['media']['coverImage']['extraLarge'],
-            'ep_title': '{} {} {}'.format(res['episode'], airing_status, airingAt_day),
+            'ep_title': f"{res['episode']} {airing_status} {airingAt_day}",
             'ep_airingAt': airingAt_time,
             'averageScore': res['media']['averageScore'],
             'rank': rank,
             'plot': res['media']['description'],
             'genres': genres,
-            'id': res['media']['id']
+            'id': res['media']['id'],
         }
-
-        return base
 
     def _database_update_show(self, res):
         titles = self._get_titles(res)
         start_date = self._get_start_date(res)
-        title_userPreferred = res['title'][self._TITLE_LANG]
-        if not title_userPreferred:
-            title_userPreferred = res['title']['userPreferred']
+        title_userPreferred = (
+            res['title'][self._TITLE_LANG] or res['title']['userPreferred']
+        )
 
-        kodi_meta = {}
-        kodi_meta['name'] = res['title']['userPreferred']
-        kodi_meta['title_userPreferred'] = title_userPreferred
-        kodi_meta['start_date'] = start_date
-        kodi_meta['query'] = titles
-        kodi_meta['episodes'] = res['episodes']
-        kodi_meta['poster'] = res['coverImage']['extraLarge']
-        kodi_meta['status'] = res.get('status')
+        kodi_meta = {
+            'name': res['title']['userPreferred'],
+            'title_userPreferred': title_userPreferred,
+            'start_date': start_date,
+            'query': titles,
+            'episodes': res['episodes'],
+            'poster': res['coverImage']['extraLarge'],
+            'status': res.get('status'),
+        }
 
         database._update_show(
             res['id'],
@@ -862,8 +848,7 @@ class AniListBrowser():
             titles = list(res['title'].values())
         # titles = [x for x in titles if (all(ord(char) < 128 for char in x) if x else [])][:3]
         titles = [x.encode('utf-8') if six.PY2 else x for x in titles if x][:3]
-        query_titles = '({})'.format(')|('.join(map(str, titles)))
-        return query_titles
+        return f"({')|('.join(map(str, titles))})"
 
     def _get_start_date(self, res):
         try:
@@ -891,24 +876,30 @@ class AniListBrowser():
 
     def _parse_div_view(self, base, is_dir):
         parsed_view = [
-            utils.allocate_item("%s" % base["name"],
-                                base["url"] + '2',
-                                is_dir,
-                                base["image"],
-                                base["info"],
-                                base["fanart"],
-                                base["image"])
+            utils.allocate_item(
+                f'{base["name"]}',
+                base["url"] + '2',
+                is_dir,
+                base["image"],
+                base["info"],
+                base["fanart"],
+                base["image"],
+            )
         ]
 
+
         parsed_view.append(
-            utils.allocate_item("%s (Dub)" % base["name"],
-                                base["url"] + '0',
-                                is_dir,
-                                base["image"],
-                                base["info"],
-                                base["fanart"],
-                                base["image"])
+            utils.allocate_item(
+                f'{base["name"]} (Dub)',
+                base["url"] + '0',
+                is_dir,
+                base["image"],
+                base["info"],
+                base["fanart"],
+                base["image"],
+            )
         )
+
 
         return parsed_view
 
@@ -929,12 +920,9 @@ class AniListBrowser():
 
         del genres_list[6]
 
-        tags_list = []
         # tags = filter(lambda x: x['isAdult'] == False, results['tags'])
         tags = [x for x in results['tags'] if x['isAdult'] is False]
-        for tag in tags:
-            tags_list.append(tag['name'])
-
+        tags_list = [tag['name'] for tag in tags]
         genre_display_list = genres_list + tags_list
         return self._select_genres(genre_dialog, genre_display_list)
 

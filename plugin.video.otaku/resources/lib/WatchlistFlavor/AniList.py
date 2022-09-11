@@ -31,11 +31,7 @@ class AniListWLF(WatchlistFlavorBase):
 
         userId = results['data']['User']['id']
 
-        login_data = {
-            'userid': str(userId)
-        }
-
-        return login_data
+        return {'userid': str(userId)}
 
     def watchlist(self):
         return self._process_watchlist_view("watchlist/%d", page=1)
@@ -43,10 +39,11 @@ class AniListWLF(WatchlistFlavorBase):
     def _base_watchlist_view(self, res):
         base = {
             "name": res[0],
-            "url": 'watchlist_status_type/%s/%s' % (self._NAME, res[1]),
-            "image": res[0].lower() + '.png',
+            "url": f'watchlist_status_type/{self._NAME}/{res[1]}',
+            "image": f'{res[0].lower()}.png',
             "plot": '',
         }
+
 
         return self._parse_view(base)
 
@@ -56,7 +53,7 @@ class AniListWLF(WatchlistFlavorBase):
         return all_results
 
     def __anilist_statuses(self):
-        statuses = [
+        return [
             ("Next Up", "CURRENT?next_up=true"),
             ("Current", "CURRENT"),
             ("Rewatching", "REPEATING"),
@@ -65,8 +62,6 @@ class AniListWLF(WatchlistFlavorBase):
             ("Completed", "COMPLETED"),
             ("Dropped", "DROPPED"),
         ]
-
-        return statuses
 
     def get_watchlist_status(self, status, next_up):
         query = '''
@@ -188,9 +183,11 @@ class AniListWLF(WatchlistFlavorBase):
         result = self._post_request(self._URL, headers=self.__headers(), json={'query': query, 'variables': variables})
         results = result.json()['data']['Media']['mediaListEntry']
 
-        anime_entry = {}
-        anime_entry['eps_watched'] = results['progress']
-        anime_entry['status'] = results['status'].title()
+        anime_entry = {
+            'eps_watched': results['progress'],
+            'status': results['status'].title(),
+        }
+
         anime_entry['score'] = results['score']
 
         return anime_entry
@@ -234,12 +231,9 @@ class AniListWLF(WatchlistFlavorBase):
 
         # kodi_meta = self._get_kodi_meta(res['id'], 'anilist')
 
-        info = {}
+        info = {'genre': res.get('genres')}
 
-        info['genre'] = res.get('genres')
-
-        desc = res.get('description')
-        if desc:
+        if desc := res.get('description'):
             desc = desc.replace('<i>', '[I]').replace('</i>', '[/I]')
             desc = desc.replace('<b>', '[B]').replace('</b>', '[/B]')
             desc = desc.replace('<br>', '[CR]')
@@ -311,7 +305,7 @@ class AniListWLF(WatchlistFlavorBase):
         }
 
         if res['format'] == 'MOVIE' and res['episodes'] == 1:
-            base['url'] = "watchlist_to_movie/?anilist_id=%s" % (res['id'])
+            base['url'] = f"watchlist_to_movie/?anilist_id={res['id']}"
             base['plot']['mediatype'] = 'movie'
             return self._parse_view(base, False)
 
@@ -322,7 +316,7 @@ class AniListWLF(WatchlistFlavorBase):
         res = res['media']
         next_up = progress + 1
         episode_count = res['episodes'] if res['episodes'] is not None else 0
-        title = '%s - %s/%s' % (res['title']['userPreferred'], next_up, episode_count)
+        title = f"{res['title']['userPreferred']} - {next_up}/{episode_count}"
         poster = image = res['coverImage']['extraLarge']
         plot = None
 
@@ -336,7 +330,7 @@ class AniListWLF(WatchlistFlavorBase):
         if next_up_meta:
             url = 'play/%d/%d/' % (anilist_id, next_up)
             if next_up_meta.get('title'):
-                title = '%s - %s' % (title, next_up_meta.get('title'))
+                title = f"{title} - {next_up_meta.get('title')}"
             if next_up_meta.get('image'):
                 image = next_up_meta.get('image')
             plot = next_up_meta.get('plot')
@@ -372,7 +366,7 @@ class AniListWLF(WatchlistFlavorBase):
             return self._parse_view(base, False)
 
         if res['format'] == 'MOVIE' and res['episodes'] == 1:
-            base['url'] = "watchlist_to_movie/?anilist_id=%s" % (res['id'])
+            base['url'] = f"watchlist_to_movie/?anilist_id={res['id']}"
             base['plot']['mediatype'] = 'movie'
             return self._parse_view(base, False)
 
@@ -398,21 +392,21 @@ class AniListWLF(WatchlistFlavorBase):
         return sort_types[self._sort]
 
     def __headers(self):
-        headers = {
-            'Authorization': 'Bearer ' + self._token,
+        return {
+            'Authorization': f'Bearer {self._token}',
             'Content-Type': 'application/json',
             'Accept': 'application/json',
         }
 
-        return headers
-
     def _kitsu_to_anilist_id(self, kitsu_id):
-        arm_resp = self._get_request("https://arm.now.sh/api/v1/search?type=kitsu&id=" + kitsu_id)
+        arm_resp = self._get_request(
+            f"https://arm.now.sh/api/v1/search?type=kitsu&id={kitsu_id}"
+        )
+
         if arm_resp.status_code != 200:
             raise Exception("AnimeID not found")
 
-        anilist_id = arm_resp.json()["services"]["anilist"]
-        return anilist_id
+        return arm_resp.json()["services"]["anilist"]
 
     def watchlist_update(self, anilist_id, episode):
         return lambda: self.__update_library(episode, anilist_id)

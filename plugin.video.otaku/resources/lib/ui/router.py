@@ -61,11 +61,15 @@ def router_process(url, params={}):
     payload = "/".join(url.split("/")[1:])
 
     for param in _REGISTERED_PARAM_HOOKS:
-        if param.key in params.keys():
-            if param.value == params[param.key]:
-                param.func(payload, params)
+        if param.key in params.keys() and param.value == params[param.key]:
+            param.func(payload, params)
 
-    for route_obj in _REGISTERED_ROUTES:
-        if (route_obj.wildcard and url.startswith(route_obj.path)) or (not route_obj.wildcard and url == route_obj.path):
-            return route_obj.func(payload, params)
-    return False
+    return next(
+        (
+            route_obj.func(payload, params)
+            for route_obj in _REGISTERED_ROUTES
+            if (route_obj.wildcard and url.startswith(route_obj.path))
+            or (not route_obj.wildcard and url == route_obj.path)
+        ),
+        False,
+    )

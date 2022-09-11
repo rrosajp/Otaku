@@ -27,8 +27,10 @@ def get_auth_dialog(flavor):
     if 'linux' in platform:
         auth = wlf_auth.AltWatchlistFlavorAuth(flavor).set_settings()
     else:
-        auth = wlf_auth.WatchlistFlavorAuth(*('wlf_auth_%s.xml' % flavor, control.ADDON_PATH),
-                                            flavor=flavor).doModal()
+        auth = wlf_auth.WatchlistFlavorAuth(
+            *(f'wlf_auth_{flavor}.xml', control.ADDON_PATH), flavor=flavor
+        ).doModal()
+
 
     if auth:
         return WatchlistFlavor.login_request(flavor)
@@ -101,9 +103,8 @@ def WATCHLIST_TO_EP(payload, params):
     kodi_meta['eps_watched'] = eps_watched
     database.update_kodi_meta(anilist_id, kodi_meta)
 
-    if kitsu_id:
-        if not show_meta['kitsu_id']:
-            database.add_mapping_id(anilist_id, 'kitsu_id', kitsu_id)
+    if kitsu_id and not show_meta['kitsu_id']:
+        database.add_mapping_id(anilist_id, 'kitsu_id', kitsu_id)
 
     anime_general, content_type = _BROWSER.get_anime_init(anilist_id)
     return control.draw_items(anime_general, content_type)
@@ -140,11 +141,10 @@ def WATCHLIST_TO_MOVIE(payload, params):
 
 
 def watchlist_update(anilist_id, episode):
-    flavor = WatchlistFlavor.get_update_flavor()
-    if not flavor:
+    if flavor := WatchlistFlavor.get_update_flavor():
+        return WatchlistFlavor.watchlist_update_request(anilist_id, episode)
+    else:
         return
-
-    return WatchlistFlavor.watchlist_update_request(anilist_id, episode)
 
 
 def add_watchlist(items):
@@ -153,8 +153,11 @@ def add_watchlist(items):
         return
 
     for flavor in flavors:
-        items.insert(0, (
-            "%s's %s" % (flavor.username, flavor.title),
-            "watchlist/%s" % flavor.flavor_name,
-            flavor.image,
-        ))
+        items.insert(
+            0,
+            (
+                "%s's %s" % (flavor.username, flavor.title),
+                f"watchlist/{flavor.flavor_name}",
+                flavor.image,
+            ),
+        )

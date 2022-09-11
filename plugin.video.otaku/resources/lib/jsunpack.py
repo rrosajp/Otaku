@@ -67,10 +67,7 @@ def unpack(source):
 
     def getstring(c, a=radix):
         foo = chr(c % a + 161)
-        if c < a:
-            return foo
-        else:
-            return getstring(int(c / a), a) + foo
+        return foo if c < a else getstring(int(c / a), a) + foo
 
     payload = payload.replace("\\\\", "\\").replace("\\'", "'")
     p = re.search(r'eval\(function\(p,a,c,k,e.+?String\.fromCharCode\(([^)]+)', source)
@@ -95,7 +92,7 @@ def _filterargs(source):
 
     try:
         payload, radix, count, symtab = args
-        radix = 36 if not radix.isdigit() else int(radix)
+        radix = int(radix) if radix.isdigit() else 36
         return payload, symtab.split('|'), radix, int(count)
     except ValueError:
         raise UnpackingError('Corrupted p.a.c.k.e.r. data.')
@@ -103,27 +100,23 @@ def _filterargs(source):
 
 def _replacestrings(source):
     """Strip string lookup table (list) and replace values in source."""
-    match = re.search(r'var *(_\w+)=\["(.*?)"];', source, re.DOTALL)
-
-    if match:
-        varname, strings = match.groups()
-        startpoint = len(match.group(0))
-        lookup = strings.split('","')
-        variable = '%s[%%d]' % varname
-        for index, value in enumerate(lookup):
-            if '\\x' in value:
-                value = value.replace('\\x', '')
-                value = binascii.unhexlify(value).decode('ascii')
-            source = source.replace(variable % index, '"%s"' % value)
-        return source[startpoint:]
-    return source
+    if not (match := re.search(r'var *(_\w+)=\["(.*?)"];', source, re.DOTALL)):
+        return source
+    varname, strings = match.groups()
+    startpoint = len(match[0])
+    lookup = strings.split('","')
+    variable = '%s[%%d]' % varname
+    for index, value in enumerate(lookup):
+        if '\\x' in value:
+            value = value.replace('\\x', '')
+            value = binascii.unhexlify(value).decode('ascii')
+        source = source.replace(variable % index, '"%s"' % value)
+    return source[startpoint:]
 
 
 def _replacejsstrings(source):
     """Strip JS string encodings and replace values in source."""
-    match = re.findall(r'\\x([0-7][0-9A-F])', source)
-
-    if match:
+    if match := re.findall(r'\\x([0-7][0-9A-F])', source):
         match = set(match)
         for value in match:
             source = source.replace('\\x{0}'.format(value), binascii.unhexlify(value).decode('ascii'))
@@ -148,14 +141,16 @@ class Unbaser(object):
             self.unbase = lambda string: int(string, base)
         else:
             if base < 62:
-                self.ALPHABET[base] = self.ALPHABET[62][0:base]
+                self.ALPHABET[base] = self.ALPHABET[62][:base]
             elif 62 < base < 95:
-                self.ALPHABET[base] = self.ALPHABET[95][0:base]
+                self.ALPHABET[base] = self.ALPHABET[95][:base]
             # Build conversion dictionary cache
             try:
-                self.dictionary = dict(
-                    (cipher, index) for index, cipher in enumerate(
-                        self.ALPHABET[base]))
+                self.dictionary = {
+                    cipher: index
+                    for index, cipher in enumerate(self.ALPHABET[base])
+                }
+
             except KeyError:
                 raise TypeError('Unsupported base encoding.')
 
@@ -166,10 +161,10 @@ class Unbaser(object):
 
     def _dictunbaser(self, string):
         """Decodes a  value to an integer."""
-        ret = 0
-        for index, cipher in enumerate(string[::-1]):
-            ret += (self.base ** index) * self.dictionary[cipher]
-        return ret
+        return sum(
+            (self.base**index) * self.dictionary[cipher]
+            for index, cipher in enumerate(string[::-1])
+        )
 
 
 class UnpackingError(Exception):

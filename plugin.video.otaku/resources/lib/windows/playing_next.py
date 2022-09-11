@@ -33,20 +33,18 @@ class PlayingNext(BaseWindow):
                 progress_bar = None
 
             while int(self.player.getTotalTime()) - int(self.player.getTime()) > 2 and not self.closed \
-                    and self.playing_file == self.player.getPlayingFile():
+                        and self.playing_file == self.player.getPlayingFile():
                 xbmc.sleep(500)
                 if progress_bar is not None:
                     progress_bar.setPercent(self.calculate_percent())
 
             if self.default_action == '1' and\
-                    self.playing_file == self.player.getPlayingFile() and\
-                    not self.actioned:
+                        self.playing_file == self.player.getPlayingFile() and\
+                        not self.actioned:
                 self.player.pause()
         except:
             import traceback
             traceback.print_exc()
-            pass
-
         self.close()
 
     def doModal(self):
@@ -79,7 +77,7 @@ class PlayingNext(BaseWindow):
 
         action = action.getId()
 
-        if action == 92 or action == 10:
+        if action in [92, 10]:
             # BACKSPACE / ESCAPE
             self.close()
 

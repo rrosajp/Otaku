@@ -56,9 +56,7 @@ def raw_url(url):
 
 def get_referer(url):
     url, headers = _strip_url(url)
-    if _REFERER_HEADER in headers:
-        return headers[_REFERER_HEADER]
-    return None
+    return headers[_REFERER_HEADER] if _REFERER_HEADER in headers else None
 
 
 def send_request(url, data=None, set_request=None, head=False):
@@ -81,14 +79,10 @@ def send_request(url, data=None, set_request=None, head=False):
 
     resp = __send_request(session, target_url, data, set_request, head)
 
-    # Append Cookie if exists
-    cookie = resp.request.headers.get(_COOKIE_HEADER)
-    if cookie:
+    if cookie := resp.request.headers.get(_COOKIE_HEADER):
         out_headers[_COOKIE_HEADER] = cookie
 
-    # Append referer if exists
-    refer_url = resp.request.headers.get(_REFERER_HEADER)
-    if refer_url:
+    if refer_url := resp.request.headers.get(_REFERER_HEADER):
         out_headers[_REFERER_HEADER] = refer_url
 
     resp.url = _url_with_headers(resp.url, out_headers)
@@ -119,8 +113,11 @@ def _url_with_headers(url, headers):
     if not len(headers.keys()):
         return url
 
-    headers_arr = ["%s=%s" % (key, urllib_parse.quote_plus(value)) for key, value in
-                   six.iteritems(headers)]
+    headers_arr = [
+        f"{key}={urllib_parse.quote_plus(value)}"
+        for key, value in six.iteritems(headers)
+    ]
+
 
     return "|".join([url] + headers_arr)
 

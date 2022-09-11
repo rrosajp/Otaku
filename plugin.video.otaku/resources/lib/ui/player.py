@@ -74,7 +74,6 @@ class watchlistPlayer(xbmc.Player):
         current_ = playList.getposition()
         self.media_type = playList[current_].getVideoInfoTag().getMediaType()
         control.setSetting('addon.last_watched', self._anilist_id)
-        pass
 
     # def onAVStarted(self):
     #     self.AVStarted = True
@@ -99,12 +98,11 @@ class watchlistPlayer(xbmc.Player):
             current_position = self.current_time
 
         media_length = self.getTotalTime()
-        watched_percent = 0
-
-        if int(media_length) != 0:
-            watched_percent = float(current_position) / float(media_length) * 100
-
-        return watched_percent
+        return (
+            float(current_position) / float(media_length) * 100
+            if int(media_length) != 0
+            else 0
+        )
 
     def onWatchedPercent(self):
         if not self._watchlist_update:
@@ -120,8 +118,6 @@ class watchlistPlayer(xbmc.Player):
                 except:
                     import traceback
                     traceback.print_exc()
-                    pass
-
                 if watched_percentage > 80:
                     self._watchlist_update()
                     self.updated = True
@@ -139,7 +135,7 @@ class watchlistPlayer(xbmc.Player):
             return
 
     def keepAlive(self):
-        for i in range(0, 480):
+        for _ in range(480):
             if self.isPlayingVideo():
                 break
             xbmc.sleep(250)
@@ -245,8 +241,7 @@ class PlayerDialogs(xbmc.Player):
     def _get_next_item_args():
         current_position = playList.getposition()
         _next_info = playList[current_position + 1]
-        next_info = {}
-        next_info['thumb'] = _next_info.getArt('thumb')
+        next_info = {'thumb': _next_info.getArt('thumb')}
         next_info['name'] = _next_info.getLabel()
         next_info['playnext'] = True
         return next_info
@@ -254,9 +249,7 @@ class PlayerDialogs(xbmc.Player):
     @staticmethod
     def _is_video_window_open():
 
-        if kodiGui.getCurrentWindowId() != 12005:
-            return False
-        return True
+        return kodiGui.getCurrentWindowId() == 12005
 
 
 def cancelPlayback():
@@ -307,16 +300,15 @@ def play_source(link, anilist_id=None, watchlist_update=None, build_playlist=Non
 def _DASH_HOOK(item):
     import inputstreamhelper
     is_helper = inputstreamhelper.Helper('mpd')
-    if is_helper.check_inputstream():
-        if six.PY2:
-            item.setProperty('inputstreamaddon', is_helper.inputstream_addon)
-        else:
-            item.setProperty('inputstream', is_helper.inputstream_addon)
-        item.setProperty('inputstream.adaptive.manifest_type', 'mpd')
-        item.setContentLookup(False)
-    else:
+    if not is_helper.check_inputstream():
         raise Exception("InputStream Adaptive is not supported.")
 
+    if six.PY2:
+        item.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+    else:
+        item.setProperty('inputstream', is_helper.inputstream_addon)
+    item.setProperty('inputstream.adaptive.manifest_type', 'mpd')
+    item.setContentLookup(False)
     return item
 
 
@@ -324,14 +316,13 @@ def _DASH_HOOK(item):
 def _HLS_HOOK(item):
     import inputstreamhelper
     is_helper = inputstreamhelper.Helper('hls')
-    if is_helper.check_inputstream():
-        if six.PY2:
-            item.setProperty('inputstreamaddon', is_helper.inputstream_addon)
-        else:
-            item.setProperty('inputstream', is_helper.inputstream_addon)
-        item.setProperty('inputstream.adaptive.manifest_type', 'hls')
-        item.setContentLookup(False)
-    else:
+    if not is_helper.check_inputstream():
         raise Exception("InputStream Adaptive is not supported.")
 
+    if six.PY2:
+        item.setProperty('inputstreamaddon', is_helper.inputstream_addon)
+    else:
+        item.setProperty('inputstream', is_helper.inputstream_addon)
+    item.setProperty('inputstream.adaptive.manifest_type', 'hls')
+    item.setContentLookup(False)
     return item

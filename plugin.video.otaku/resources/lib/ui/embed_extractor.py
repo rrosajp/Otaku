@@ -17,27 +17,29 @@ _EMBED_EXTRACTORS = {}
 
 def register_wonderful_subs(base_url, token):
     __register_extractor(
-        ["{}/media/stream".format(base_url)],
+        [f"{base_url}/media/stream"],
         __wrapper_add_token,
-        data=(token, __extract_wonderfulsubs)
+        data=(token, __extract_wonderfulsubs),
     )
 
 
 def load_video_from_url(in_url):
-    found_extractor = None
-
-    for extractor in list(_EMBED_EXTRACTORS.keys()):
-        if in_url.startswith(extractor):
-            found_extractor = _EMBED_EXTRACTORS[extractor]
-            break
+    found_extractor = next(
+        (
+            _EMBED_EXTRACTORS[extractor]
+            for extractor in list(_EMBED_EXTRACTORS.keys())
+            if in_url.startswith(extractor)
+        ),
+        None,
+    )
 
     if found_extractor is None:
-        control.log("[*E*] No extractor found for %s" % in_url, 'info')
+        control.log(f"[*E*] No extractor found for {in_url}", 'info')
         return None
 
     try:
         if found_extractor['preloader'] is not None:
-            control.log("Modifying Url: %s" % in_url, 'info')
+            control.log(f"Modifying Url: {in_url}", 'info')
             in_url = found_extractor['preloader'](in_url)
 
         data = found_extractor['data']
@@ -45,7 +47,7 @@ def load_video_from_url(in_url):
             return found_extractor['parser'](in_url,
                                              data)
 
-        control.log("Probing source: %s" % in_url, 'info')
+        control.log(f"Probing source: {in_url}", 'info')
         reqObj = http.send_request(in_url)
         return found_extractor['parser'](http.raw_url(reqObj.url),
                                          reqObj.text,
@@ -59,12 +61,13 @@ def load_video_from_url(in_url):
 
 
 def __get_packed_data(html):
-    packed_data = ''
-    for match in re.finditer(r'(eval\s*\(function.*?)</script>', html, re.DOTALL | re.I):
-        if jsunpack.detect(match.group(1)):
-            packed_data += jsunpack.unpack(match.group(1))
-
-    return packed_data
+    return ''.join(
+        jsunpack.unpack(match.group(1))
+        for match in re.finditer(
+            r'(eval\s*\(function.*?)</script>', html, re.DOTALL | re.I
+        )
+        if jsunpack.detect(match.group(1))
+    )
 
 
 def __check_video_list(refer_url, vidlist, add_referer=False,
@@ -121,29 +124,29 @@ def __extract_wonderfulsubs(url, content, referer=None):
         embed_url = res["embed"]
         return load_video_from_url(embed_url)
 
-    results = __check_video_list(
+    return __check_video_list(
         url,
-        map(lambda x: (x['label'],
-                       x['src'],
-                       x['captions']['src'] if 'captions' in x.keys() else None),
-            res["urls"])
+        map(
+            lambda x: (
+                x['label'],
+                x['src'],
+                x['captions']['src'] if 'captions' in x.keys() else None,
+            ),
+            res["urls"],
+        ),
     )
-
-    return results
 
 
 def __extract_rapidvideo(url, page_content, referer=None):
     soup = BeautifulSoup(page_content, 'html.parser')
-    results = [(x['label'], x['src']) for x in soup.select('source')]
-    return results
+    return [(x['label'], x['src']) for x in soup.select('source')]
 
 
 def __extract_mp4upload(url, data):
     res = requests.get(url).text
     res += __get_packed_data(res)
-    r = re.search(r'src\("([^"]+)', res)
-    if r:
-        return r.group(1) + '|Referer=https://www.mp4upload.com/&verifypeer=false'
+    if r := re.search(r'src\("([^"]+)', res):
+        return r[1] + '|Referer=https://www.mp4upload.com/&verifypeer=false'
     return
 
 
@@ -158,9 +161,9 @@ def __extract_dood(url, data):
     match = re.search(r'''dsplayer\.hotkeys[^']+'([^']+).+?function\s*makePlay.+?return[^?]+([^"]+)''', html, re.DOTALL)
     if match:
         host, media_id = re.findall(pattern, url)[0]
-        token = match.group(2)
-        nurl = 'https://{0}{1}'.format(host, match.group(1))
-        headers.update({'Referer': url})
+        token = match[2]
+        nurl = 'https://{0}{1}'.format(host, match[1])
+        headers['Referer'] = url
         html = requests.get(nurl, headers=headers).text
         return dood_decode(html) + token + str(int(time.time() * 1000))
     return
@@ -171,8 +174,7 @@ def __extract_streamtape(url, data):
     groups = re.search(
         r"document\.getElementById\(.*?\)\.innerHTML = [\"'](.*?)[\"'] \+ [\"'](.*?)[\"']",
         res)
-    stream_link = "https:" + groups.group(1) + groups.group(2)
-    return stream_link
+    return "https:" + groups[1] + groups[2]
 
 
 def __extract_vidstream(url, data):
@@ -199,8 +201,7 @@ def __extract_xstreamcdn(url, data):
         return
     stream_file = res[-1]['file']
     r = requests.get(stream_file, allow_redirects=False)
-    stream_link = (r.headers['Location']).replace('https', 'http')
-    return stream_link
+    return (r.headers['Location']).replace('https', 'http')
 
 
 def __extract_goload(url, data):
@@ -228,10 +229,10 @@ def __extract_goload(url, data):
         host, media_id = re.findall(pattern, url)[0]
         keys = ['37911490979715163134003223491201', '54674138327930866480207815084989']
         iv = six.ensure_binary('3134003223491201')
-        params = _decrypt(r.group(1), keys[0], iv)
+        params = _decrypt(r[1], keys[0], iv)
         eurl = 'https://{0}/encrypt-ajax.php?id={1}&alias={2}'.format(
             host, _encrypt(media_id, keys[0], iv), params)
-        headers.update({'X-Requested-With': 'XMLHttpRequest'})
+        headers['X-Requested-With'] = 'XMLHttpRequest'
         response = requests.get(eurl, headers=headers).json()
         response = response.get('data')
         if response:
@@ -268,7 +269,7 @@ def __relative_url(original_url, new_url):
         return new_url
 
     if new_url.startswith("//"):
-        return "http:%s" % new_url
+        return f"http:{new_url}"
     else:
         return urllib_parse.urljoin(original_url, new_url)
 
@@ -292,8 +293,9 @@ def __extractor_factory(regex, double_ref=False, match=0, debug=False):
                 video_url = __relative_url(regex_url, regex_url)
             return video_url
         except Exception as e:
-            control.log("[*E*] Failed to load link: %s: %s" % (url, e), 'info')
+            control.log(f"[*E*] Failed to load link: {url}: {e}", 'info')
             return None
+
     return f
 
 

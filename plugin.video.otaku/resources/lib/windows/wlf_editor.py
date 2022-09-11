@@ -27,21 +27,21 @@ class SourceSelect(BaseWindow):
         self.flavors_list = self.getControl(2000)
 
         if control.anilist_enabled():
-            menu_item = control.menuItem(label='%s' % 'AniList')
+            menu_item = control.menuItem(label='AniList')
             menu_item.setProperty('username', control.getSetting('anilist.username'))
             self.flavors_list.addItem(menu_item)
 
             self.anime_list_entry['anilist'] = WatchlistFlavor.watchlist_anime_entry_request('anilist', '235')
 
         if control.kitsu_enabled():
-            menu_item = control.menuItem(label='%s' % 'Kitsu')
+            menu_item = control.menuItem(label='Kitsu')
             menu_item.setProperty('username', control.getSetting('kitsu.username'))
             self.flavors_list.addItem(menu_item)
 
             self.anime_list_entry['kitsu'] = WatchlistFlavor.watchlist_anime_entry_request('kitsu', '235')
 
         if control.myanimelist_enabled():
-            menu_item = control.menuItem(label='%s' % 'MyAnimeList')
+            menu_item = control.menuItem(label='MyAnimeList')
             menu_item.setProperty('username', control.getSetting('mal.username'))
             self.flavors_list.addItem(menu_item)
 
@@ -50,7 +50,7 @@ class SourceSelect(BaseWindow):
         selected_flavor_item = self.flavors_list.getSelectedItem()
         self.selected_flavor = (selected_flavor_item.getLabel()).lower()
         for _id, value in list(self.anime_list_entry[self.selected_flavor].items()):
-            item = control.menuItem(label='%s' % _id)
+            item = control.menuItem(label=f'{_id}')
             item.setProperty(_id, str(value))
             self.editor_list.addItem(item)
 
@@ -66,7 +66,7 @@ class SourceSelect(BaseWindow):
         selected_flavor_item = self.flavors_list.getSelectedItem()
         self.selected_flavor = (selected_flavor_item.getLabel()).lower()
         for _id, value in list(self.anime_list_entry[self.selected_flavor].items()):
-            item = control.menuItem(label='%s' % _id)
+            item = control.menuItem(label=f'{_id}')
             item.setProperty(_id, str(value))
             self.editor_list.addItem(item)
 
@@ -133,8 +133,7 @@ class SourceSelect(BaseWindow):
 
     def flip_score(self, score):
 
-        if score == 'null' or '0':
-            new_score = '1'
+        new_score = '1'
 
         if score != 'null' and 1 <= int(score) < 10:
             new_score = int(score) + 1
@@ -142,7 +141,7 @@ class SourceSelect(BaseWindow):
         if score == '10':
             new_score = '0'
 
-        self.anime_item.setProperty('score', str(new_score))
+        self.anime_item.setProperty('score', new_score)
 
     def onClick(self, controlId):
 
@@ -152,68 +151,16 @@ class SourceSelect(BaseWindow):
 
         focus_id = self.getFocusId()
 
-        if (action == 4 or action == 3 or action == 7) and focus_id == 2000:
+        if action in [4, 3, 7] and focus_id == 2000:
             # UP/ DOWN
             self.flip_flavor()
 
-        if action == 92 or action == 10:
+        if action in [92, 10]:
             # BACKSPACE / ESCAPE
             self.close()
 
-        if action == 7:
-            if focus_id == 2001:
-                self.edit_anime()
-            # if focus_id == 3001:
-            #     self.flip_mutliple_providers('enabled', provider_type='hosters')
-            # if focus_id == 3002:
-            #     self.flip_mutliple_providers('enabled', provider_type='torrent')
-            # if focus_id == 3003:
-            #     self.flip_mutliple_providers('disabled', provider_type='hosters')
-            # if focus_id == 3004:
-            #     self.flip_mutliple_providers('disabled', provider_type='torrent')
-            # if focus_id == 3005:
-            #     self.flip_mutliple_providers('enabled')
-            # if focus_id == 3006:
-            #     self.flip_mutliple_providers('disabled')
-            # if focus_id == 3007:
-            #     self.flip_mutliple_providers('enabled', package_name=self.package_list.getSelectedItem().getLabel())
-            # if focus_id == 3008:
-            #     self.flip_mutliple_providers('disabled', package_name=self.package_list.getSelectedItem().getLabel())
-            # if focus_id == 3009:
-            #     tools.showBusyDialog()
-
-            #     self.providers_class.install_package(None)
-            #     self.packages = database.get_provider_packages()
-            #     self.fill_packages()
-            #     try:
-            #         current_package = self.package_list.getSelectedItem().getLabel()
-            #         self.fill_providers(current_package)
-            #     except:
-            #         self.provider_list.reset()
-            #         pass
-            #     tools.closeBusyDialog()
-            #     self.setFocus(self.package_list)
-            # if focus_id == 3010:
-            #     try: package = self.package_list.getSelectedItem().getLabel()
-            #     except:
-            #         return
-            #     tools.showBusyDialog()
-            #     confirm = tools.showDialog.yesno(tools.addonName, tools.lang(40255) % package)
-            #     if not confirm:
-            #         tools.closeBusyDialog()
-            #         return
-
-            #     self.providers_class.uninstall_package(package=self.package_list.getSelectedItem().getLabel(),
-            #                                            silent=True)
-            #     self.packages = database.get_provider_packages()
-            #     self.fill_packages()
-            #     self.fill_providers()
-            #     tools.closeBusyDialog()
-            #     self.setFocus(self.package_list)
-            pass
-
-        if action == 0:
-            pass
+        if action == 7 and focus_id == 2001:
+            self.edit_anime()
 
     def onAction(self, action):
         action = action.getId()

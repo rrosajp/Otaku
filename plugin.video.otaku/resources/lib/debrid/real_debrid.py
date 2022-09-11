@@ -31,12 +31,10 @@ class RealDebrid:
             control.progressDialog.close()
             return
         time.sleep(self.OauthTimeStep)
-        url = "client_id=%s&code=%s" % (self.ClientID, self.DeviceCode)
+        url = f"client_id={self.ClientID}&code={self.DeviceCode}"
         url = self.OauthUrl + self.DeviceCredUrl % url
         response = json.loads(requests.get(url).text)
-        if 'error' in response:
-            return
-        else:
+        if 'error' not in response:
             try:
                 control.progressDialog.close()
                 control.setSetting('rd.client_id', response['client_id'])
@@ -45,12 +43,12 @@ class RealDebrid:
                 self.ClientID = response['client_id']
             except:
                 control.ok_dialog(control.ADDON_NAME, control.lang(30105))
-            return
+        return
 
     def auth(self):
         self.ClientSecret = ''
         self.ClientID = 'X245A4XAIBGVM'
-        url = ("client_id=%s&new_credentials=yes" % self.ClientID)
+        url = f"client_id={self.ClientID}&new_credentials=yes"
         url = self.OauthUrl + self.DeviceCodeUrl % url
         response = json.loads(requests.get(url).text)
         control.copy2clip(response['user_code'])
@@ -63,7 +61,7 @@ class RealDebrid:
         self.OauthTimeStep = int(response['interval'])
         self.DeviceCode = response['device_code']
 
-        while self.ClientSecret == '':
+        while not self.ClientSecret:
             self.auth_loop()
 
         self.token_request()
@@ -91,7 +89,7 @@ class RealDebrid:
         control.setSetting('rd.expiry', str(time.time() + int(response['expires_in'])))
         username = self.get_url('https://api.real-debrid.com/rest/1.0/user')['username']
         control.setSetting('rd.username', username)
-        control.ok_dialog(control.ADDON_NAME, 'Real Debrid ' + control.lang(30103))
+        control.ok_dialog(control.ADDON_NAME, f'Real Debrid {control.lang(30103)}')
         # tools.log('Authorised Real Debrid successfully', 'info')
 
     def refreshToken(self):
@@ -100,13 +98,11 @@ class RealDebrid:
                     'client_secret': self.ClientSecret,
                     'client_id': self.ClientID
                     }
-        url = self.OauthUrl + 'token'
+        url = f'{self.OauthUrl}token'
         response = requests.post(url, data=postData)
         response = json.loads(response.text)
         if 'access_token' in response:
             self.token = response['access_token']
-        else:
-            pass
         if 'refresh_token' in response:
             self.refresh = response['refresh_token']
         control.setSetting('rd.auth', self.token)
@@ -118,33 +114,31 @@ class RealDebrid:
         ###############################################
 
     def post_url(self, url, postData, fail_check=False):
-        headers = {
-            'Authorization': 'Bearer {}'.format(self.token)
-        }
+        headers = {'Authorization': f'Bearer {self.token}'}
         response = requests.post(url, data=postData, headers=headers, timeout=5).text
-        if 'bad_token' in response or 'Bad Request' in response:
-            if not fail_check:
-                self.refreshToken()
-                response = self.post_url(url, postData, fail_check=True)
+        if (
+            'bad_token' in response or 'Bad Request' in response
+        ) and not fail_check:
+            self.refreshToken()
+            response = self.post_url(url, postData, fail_check=True)
         try:
             return json.loads(response)
         except:
             return response
 
     def get_url(self, url, fail_check=False):
-        headers = {
-            'Authorization': 'Bearer {}'.format(self.token)
-        }
+        headers = {'Authorization': f'Bearer {self.token}'}
 
         try:
             response = requests.get(url, headers=headers, timeout=(5, None)).text
         except requests.exceptions.Timeout:
             response = ''
 
-        if 'bad_token' in response or 'Bad Request' in response:
-            if not fail_check:
-                self.refreshToken()
-                response = self.get_url(url, fail_check=True)
+        if (
+            'bad_token' in response or 'Bad Request' in response
+        ) and not fail_check:
+            self.refreshToken()
+            response = self.get_url(url, fail_check=True)
 
         try:
             return json.loads(response)
@@ -156,40 +150,45 @@ class RealDebrid:
         if isinstance(hashList, list):
             cache_result = {}
             hashList = [hashList[x: x + 100] for x in range(0, len(hashList), 100)]
-            threads = []
-            for section in hashList:
-                threads.append(threading.Thread(target=self._check_hash_thread, args=(section,)))
+            threads = [
+                threading.Thread(target=self._check_hash_thread, args=(section,))
+                for section in hashList
+            ]
+
             for i in threads:
                 i.start()
             for i in threads:
                 i.join()
             return self.cache_check_results
         else:
-            hashString = "/" + hashList
-            return self.get_url("https://api.real-debrid.com/rest/1.0/torrents/instantAvailability" + hashString)
+            hashString = f"/{hashList}"
+            return self.get_url(
+                f"https://api.real-debrid.com/rest/1.0/torrents/instantAvailability{hashString}"
+            )
 
     def _check_hash_thread(self, hashes):
         hashString = '/' + '/'.join(hashes)
-        response = self.get_url("https://api.real-debrid.com/rest/1.0/torrents/instantAvailability" + hashString)
+        response = self.get_url(
+            f"https://api.real-debrid.com/rest/1.0/torrents/instantAvailability{hashString}"
+        )
+
         self.cache_check_results.update(response)
 
     def addMagnet(self, magnet):
         postData = {'magnet': magnet}
         url = 'https://api.real-debrid.com/rest/1.0/torrents/addMagnet'
-        response = self.post_url(url, postData)
-        return response
+        return self.post_url(url, postData)
 
     def list_torrents(self):
         url = "https://api.real-debrid.com/rest/1.0/torrents"
-        response = self.get_url(url)
-        return response
+        return self.get_url(url)
 
     def torrentInfo(self, id):
-        url = "https://api.real-debrid.com/rest/1.0/torrents/info/%s" % id
+        url = f"https://api.real-debrid.com/rest/1.0/torrents/info/{id}"
         return self.get_url(url)
 
     def torrentSelect(self, torrentID, fileID):
-        url = "https://api.real-debrid.com/rest/1.0/torrents/selectFiles/%s" % torrentID
+        url = f"https://api.real-debrid.com/rest/1.0/torrents/selectFiles/{torrentID}"
         postData = {'files': fileID}
         return self.post_url(url, postData)
 
@@ -203,10 +202,8 @@ class RealDebrid:
             return None
 
     def deleteTorrent(self, id):
-        headers = {
-            'Authorization': 'Bearer {}'.format(self.token)
-        }
-        url = "https://api.real-debrid.com/rest/1.0/torrents/delete/%s" % (id)
+        headers = {'Authorization': f'Bearer {self.token}'}
+        url = f"https://api.real-debrid.com/rest/1.0/torrents/delete/{id}"
         requests.delete(url, headers=headers, timeout=5)
 
     def resolve_magnet(self, hash_, magnet, episode):
@@ -219,7 +216,7 @@ class RealDebrid:
             for storage_variant in hashCheck[hash]['rd']:
 
                 key_list = ','.join(list(storage_variant.keys()))
-                xbmcgui.Dialog().textviewer('sdsd', str(key_list))
+                xbmcgui.Dialog().textviewer('sdsd', key_list)
 
                 torrent = self.addMagnet(magnet)
 
@@ -256,15 +253,18 @@ class RealDebrid:
 
             hashCheck = self.checkHash(hash_)
 
-            for storage_variant in hashCheck[hash_]['rd']:
-                key_list = 'all'
+            key_list = 'all'
 
+            for _ in hashCheck[hash_]['rd']:
                 torrent = self.addMagnet(magnet)
 
                 self.torrentSelect(torrent['id'], key_list)
 
                 files = self.torrentInfo(torrent['id'])
-                selected_files = [(idx, i) for idx, i in enumerate([i for i in files['files'] if i['selected'] == 1])]
+                selected_files = list(
+                    enumerate(i for i in files['files'] if i['selected'] == 1)
+                )
+
 
                 if len(selected_files) == 1:
                     stream_link = self.resolve_hoster(files['links'][0])

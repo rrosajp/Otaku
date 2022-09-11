@@ -62,12 +62,11 @@ class Resolver(BaseWindow):
                         stream_link = self.resolve_source(self.resolvers[i['debrid_provider']], i)
                         if stream_link is None:
                             continue
-                        else:
-                            self.return_data = stream_link
-                            self.close()
-                            return
+                        self.return_data = stream_link
+                        self.close()
+                        return
 
-                    elif i['type'] == 'cloud' or i['type'] == 'hoster':
+                    elif i['type'] in ['cloud', 'hoster']:
 
                         if i['type'] == 'cloud' and i['debrid_provider'] == 'premiumize':
                             stream_link = i['hash']
@@ -76,10 +75,9 @@ class Resolver(BaseWindow):
 
                         if stream_link is None:
                             continue
-                        else:
-                            self.return_data = stream_link
-                            self.close()
-                            return
+                        self.return_data = stream_link
+                        self.close()
+                        return
 
                     elif i['type'] == 'direct':
                         stream_link = i['hash']
@@ -87,10 +85,9 @@ class Resolver(BaseWindow):
 
                         if stream_link is None:
                             continue
-                        else:
-                            self.return_data = stream_link
-                            self.close()
-                            return
+                        self.return_data = stream_link
+                        self.close()
+                        return
 
                     elif i['type'] == 'embed':
                         from resources.lib.ui import embed_extractor
@@ -98,10 +95,9 @@ class Resolver(BaseWindow):
 
                         if stream_link is None:
                             continue
-                        else:
-                            self.return_data = stream_link
-                            self.close()
-                            return
+                        self.return_data = stream_link
+                        self.close()
+                        return
 
                 except:
                     import traceback
@@ -120,17 +116,16 @@ class Resolver(BaseWindow):
         stream_link = None
         api = api()
         hash_ = source['hash']
-        magnet = 'magnet:?xt=urn:btih:' + hash_
+        magnet = f'magnet:?xt=urn:btih:{hash_}'
         try:
 
             if source['type'] == 'torrent':
                 stream_link = api.resolve_single_magnet(hash_, magnet, source['episode_re'])
-            elif source['type'] == 'cloud' or source['type'] == 'hoster':
+            elif source['type'] in ['cloud', 'hoster']:
                 stream_link = api.resolve_hoster(hash_)
         except:
             import traceback
             traceback.print_exc()
-            pass
         return stream_link
 
     def doModal(self, sources, args, pack_select):
@@ -160,27 +155,22 @@ class Resolver(BaseWindow):
         else:
             self.resolve(sources, args, pack_select)
 
-        if not self.canceled:
-            return self.return_data
-        else:
-            return None
+        return None if self.canceled else self.return_data
 
     def is_canceled(self):
-        if not self.silent:
-            if self.canceled:
-                return True
+        if not self.silent and self.canceled:
+            return True
 
     def onAction(self, action):
 
         id = action.getId()
-        if id == 92 or id == 10:
+        if id in [92, 10]:
             self.canceled = True
             self.close()
 
     def setBackground(self, url):
         if not self.silent:
             self.background.setImage(url)
-        pass
 
     def close(self):
         if not self.silent:

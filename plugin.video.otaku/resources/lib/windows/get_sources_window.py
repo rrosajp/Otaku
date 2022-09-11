@@ -28,8 +28,6 @@ class GetSources(BaseWindow):
     def onInit(self):
         threading.Thread(target=self.getSources, args=(self.args,)).start()
 
-        pass
-
     def doModal(self):
         try:
             # if control.getSetting('general.tempSilent') == 'true':
@@ -64,21 +62,18 @@ class GetSources(BaseWindow):
         """
 
     def is_canceled(self):
-        if not self.silent:
-            if self.canceled:
-                return True
+        if not self.silent and self.canceled:
+            return True
 
     def onAction(self, action):
 
         id = action.getId()
-        if id == 92 or id == 10:
+        if id in [92, 10]:
             self.canceled = True
 
     def setBackground(self, url):
-        if not self.silent:
-            if self.display_style == 0:
-                self.background.setImage(url)
-        pass
+        if not self.silent and self.display_style == 0:
+            self.background.setImage(url)
 
     def close(self):
         if not self.silent:
@@ -109,10 +104,10 @@ class GetSources(BaseWindow):
         # self.setProperty('total_torrents', str(len([i for i in self.allTorrents])))
 
         # self.setProperty('total_torrents', str(len([i for i in self.allTorrents])))
-        self.setProperty('total_torrents', str(len([i for i in self.torrentCacheSources])))
-        self.setProperty('cached_torrents', str(len([i for i in self.torrentCacheSources])))
-        self.setProperty('hosters_sources', str(len([i for i in self.embedSources])))
-        self.setProperty('cloud_sources', str(len([i for i in self.cloud_files])))
+        self.setProperty('total_torrents', str(len(list(self.torrentCacheSources))))
+        self.setProperty('cached_torrents', str(len(list(self.torrentCacheSources))))
+        self.setProperty('hosters_sources', str(len(list(self.embedSources))))
+        self.setProperty('cloud_sources', str(len(list(self.cloud_files))))
 
         # Set remaining providers string
         self.setProperty("remaining_providers_count", str((len(self.remainingProviders))))
