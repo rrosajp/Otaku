@@ -1,8 +1,7 @@
 import re
 import six
-from six.moves import urllib_parse
-from resources.lib.ui import utils, http, control
-import requests
+from six.moves import urllib_parse, urllib_error
+from resources.lib.ui import utils, http, control, client
 import json
 import base64
 from bs4 import BeautifulSoup
@@ -10,9 +9,11 @@ from resources.lib.pyaes import AESModeOfOperationCBC, Encrypter, Decrypter
 from resources.lib import jsunpack
 import random
 import string
+import binascii
 import time
 
 _EMBED_EXTRACTORS = {}
+_EDGE_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.18363'
 
 
 def register_wonderful_subs(base_url, token):
@@ -37,7 +38,7 @@ def load_video_from_url(in_url):
 
     try:
         if found_extractor['preloader'] is not None:
-            control.log("Modifying Url: %s" % in_url, 'info')
+            control.log("Modifying Url: %s" % in_url)
             in_url = found_extractor['preloader'](in_url)
 
         data = found_extractor['data']
@@ -45,12 +46,14 @@ def load_video_from_url(in_url):
             return found_extractor['parser'](in_url,
                                              data)
 
-        control.log("Probing source: %s" % in_url, 'info')
-        reqObj = http.send_request(in_url)
-        return found_extractor['parser'](http.raw_url(reqObj.url),
-                                         reqObj.text,
-                                         http.get_referer(in_url))
-    except http.URLError:
+        control.log("Probing source: %s" % in_url)
+        # reqObj = http.send_request(in_url)
+        reqObj = client.request(in_url, output='extended')
+
+        return found_extractor['parser'](reqObj[5],
+                                         reqObj[0],
+                                         reqObj[2].get('Referer'))
+    except urllib_error.URLError:
         return None  # Dead link, Skip result
     except:
         raise
@@ -67,6 +70,10 @@ def __get_packed_data(html):
     return packed_data
 
 
+def __append_headers(headers):
+    return '|%s' % '&'.join(['%s=%s' % (key, urllib_parse.quote_plus(headers[key])) for key in headers])
+
+
 def __check_video_list(refer_url, vidlist, add_referer=False,
                        ignore_cookie=False):
     nlist = []
@@ -78,7 +85,7 @@ def __check_video_list(refer_url, vidlist, add_referer=False,
 
             temp_req = http.head_request(item_url)
             if temp_req.status_code != 200:
-                control.log("[*] Skiping Invalid Url: %s - status = %d" % (item[1], temp_req.status_code), 'info')
+                control.log("[*] Skiping Invalid Url: %s - status = %d" % (item[1], temp_req.status_code))
                 continue  # Skip Item.
 
             out_url = temp_req.url
@@ -88,14 +95,15 @@ def __check_video_list(refer_url, vidlist, add_referer=False,
             nlist.append((item[0], out_url, item[2]))
         except Exception as e:
             # Just don't add source.
+            control.log('Error when checking: {0}'.format(e))
             pass
 
     return nlist
 
 
 def __check_video(url):
-    temp_req = requests.head(url)
-    if not temp_req.ok:
+    temp_req = client.request(url, limit=0, output='extended')
+    if temp_req[1] != '200':
         url = None
 
     return url
@@ -138,47 +146,75 @@ def __extract_rapidvideo(url, page_content, referer=None):
     return results
 
 
-def __extract_mp4upload(url, data):
-    res = requests.get(url).text
-    res += __get_packed_data(res)
-    r = re.search(r'src\("([^"]+)', res)
+def __extract_mp4upload(url, page_content, referer=None):
+    page_content += __get_packed_data(page_content)
+    r = re.search(r'src\("([^"]+)', page_content)
+    headers = {'User-Agent': _EDGE_UA,
+               'Referer': url,
+               'verifypeer': 'false'}
     if r:
-        return r.group(1) + '|Referer=https://www.mp4upload.com/&verifypeer=false'
+        return r.group(1) + __append_headers(headers)
     return
 
 
-def __extract_dood(url, data):
+def __extract_dood(url, page_content, referer=None):
     def dood_decode(pdata):
         t = string.ascii_letters + string.digits
         return pdata + ''.join([random.choice(t) for _ in range(10)])
 
     pattern = r'(?://|\.)(dood(?:stream)?\.(?:com?|watch|to|s[ho]|cx|la|w[sf]|pm))/(?:d|e)/([0-9a-zA-Z]+)'
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    html = requests.get(url, headers=headers).text
-    match = re.search(r'''dsplayer\.hotkeys[^']+'([^']+).+?function\s*makePlay.+?return[^?]+([^"]+)''', html, re.DOTALL)
+    match = re.search(r'''dsplayer\.hotkeys[^']+'([^']+).+?function\s*makePlay.+?return[^?]+([^"]+)''', page_content, re.DOTALL)
     if match:
         host, media_id = re.findall(pattern, url)[0]
         token = match.group(2)
         nurl = 'https://{0}{1}'.format(host, match.group(1))
-        headers.update({'Referer': url})
-        html = requests.get(nurl, headers=headers).text
-        return dood_decode(html) + token + str(int(time.time() * 1000))
+        html = client.request(nurl, referer=url)
+        headers = {'User-Agent': _EDGE_UA,
+                   'Referer': url}
+        return dood_decode(html) + token + str(int(time.time() * 1000)) + __append_headers(headers)
     return
 
 
-def __extract_streamtape(url, data):
-    res = requests.get(url).text
+def __extract_streamtape(url, page_content, referer=None):
     groups = re.search(
         r"document\.getElementById\(.*?\)\.innerHTML = [\"'](.*?)[\"'] \+ [\"'](.*?)[\"']",
-        res)
+        page_content)
     stream_link = "https:" + groups.group(1) + groups.group(2)
     return stream_link
 
 
-def __extract_vidstream(url, data):
-    res = requests.get(url).text
+def __extract_streamsb(url, page_content, referer=None):
+    def get_embedurl(host, media_id):
+        def makeid(length):
+            t = string.ascii_letters + string.digits
+            return ''.join([random.choice(t) for _ in range(length)])
+
+        x = '{0}||{1}||{2}||streamsb'.format(makeid(12), media_id, makeid(12))
+        c1 = binascii.hexlify(x.encode('utf8')).decode('utf8')
+        x = '{0}||{1}||{2}||streamsb'.format(makeid(12), makeid(12), makeid(12))
+        c2 = binascii.hexlify(x.encode('utf8')).decode('utf8')
+        x = '{0}||{1}||{2}||streamsb'.format(makeid(12), c2, makeid(12))
+        c3 = binascii.hexlify(x.encode('utf8')).decode('utf8')
+        return 'https://{0}/sources43/{1}/{2}'.format(host, c1, c3)
+
+    pattern = r'(?://|\.)((?:streamsb|streamsss|sblanh)\.(?:net|com))/e/([0-9a-zA-Z]+)'
+    host, media_id = re.findall(pattern, url)[0]
+    eurl = get_embedurl(host, media_id)
+    headers = {'User-Agent': _EDGE_UA,
+               'Referer': url,
+               'watchsb': 'streamsb'}
+    html = client.request(eurl, headers=headers)
+    data = json.loads(html).get("stream_data", {})
+    strurl = data.get('file') or data.get('backup')
+    if strurl:
+        headers.pop('watchsb')
+        return strurl + __append_headers(headers)
+    return
+
+
+def __extract_vidstream(url, page_content, referer=None):
     SOURCE_RE = re.compile(r"file:\s'(.*?)',")
-    res = SOURCE_RE.findall(res)
+    res = SOURCE_RE.findall(page_content)
     stream_link = None
     if res:
         stream_link = res[0]
@@ -191,19 +227,17 @@ def __extract_vidstream(url, data):
 
 
 def __extract_xstreamcdn(url, data):
-    res = requests.post(url, data=data)
-    if not res.ok:
-        return
-    res = res.json()['data']
+    res = client.request(url, post=data)
+    res = json.loads(res)['data']
     if res == 'Video not found or has been removed':
         return
     stream_file = res[-1]['file']
-    r = requests.get(stream_file, allow_redirects=False)
-    stream_link = (r.headers['Location']).replace('https', 'http')
+    r = client.request(stream_file, redirect=False, output='extended')
+    stream_link = (r[2]['Location']).replace('https', 'http')
     return stream_link
 
 
-def __extract_goload(url, data):
+def __extract_goload(url, page_content, referer=None):
     def _encrypt(msg, key, iv):
         key = six.ensure_binary(key)
         encrypter = Encrypter(AESModeOfOperationCBC(key, iv))
@@ -221,8 +255,6 @@ def __extract_goload(url, data):
         return six.ensure_str(decrypted)
 
     pattern = r'(?://|\.)((?:goload|gogohd)\.(?:io|pro|net))/(?:streaming\.php|embedplus)\?id=([a-zA-Z0-9-]+)'
-    headers = {'User-Agent': 'Mozilla/5.0'}
-    page_content = requests.get(url, headers=headers).text
     r = re.search(r'crypto-js\.js.+?data-value="([^"]+)', page_content)
     if r:
         host, media_id = re.findall(pattern, url)[0]
@@ -231,9 +263,8 @@ def __extract_goload(url, data):
         params = _decrypt(r.group(1), keys[0], iv)
         eurl = 'https://{0}/encrypt-ajax.php?id={1}&alias={2}'.format(
             host, _encrypt(media_id, keys[0], iv), params)
-        headers.update({'X-Requested-With': 'XMLHttpRequest'})
-        response = requests.get(eurl, headers=headers).json()
-        response = response.get('data')
+        response = client.request(eurl, XHR=True)
+        response = json.loads(response).get('data')
         if response:
             result = _decrypt(response, keys[1], iv)
             result = json.loads(result)
@@ -250,6 +281,9 @@ def __extract_goload(url, data):
 def __register_extractor(urls, function, url_preloader=None, datas=[]):
     if type(urls) is not list:
         urls = [urls]
+
+    if not datas:
+        datas = [None] * len(urls)
 
     for url, data in zip(urls, datas):
         _EMBED_EXTRACTORS[url] = {
@@ -299,39 +333,23 @@ def __extractor_factory(regex, double_ref=False, match=0, debug=False):
 
 __register_extractor(["https://www.mp4upload.com/",
                       "https://mp4upload.com/"],
-                     __extract_mp4upload,
-                     None,
-                     [{'d': 'www.mp4upload.com'},
-                      {'d': 'mp4upload.com'}])
+                     __extract_mp4upload)
 
 __register_extractor(["https://dood.wf/",
                       "https://dood.pm/"],
-                     __extract_dood,
-                     None,
-                     [{'d': 'dood.wf'},
-                      {'d': 'dood.pm'}])
+                     __extract_dood)
 
 __register_extractor(["https://goload.io/",
                       "https://goload.pro/",
                       "https://gogohd.net/"],
-                     __extract_goload,
-                     None,
-                     [{'d': 'goload.io'},
-                      {'d': 'goload.pro'},
-                      {'d': 'gogohd.net'}])
+                     __extract_goload)
 
 __register_extractor(["https://vidstreaming.io",
                       "https://gogo-stream.com",
                       "https://gogo-play.net",
                       "https://streamani.net",
                       "https://goload.one"],
-                     __extract_vidstream,
-                     None,
-                     [{'d': 'https://vidstreaming.io'},
-                      {'d': 'https://gogo-stream.com'},
-                      {'d': 'https://gogo-play.net'},
-                      {'d': 'https://streamani.net'},
-                      {'d': 'https://goload.one'}])
+                     __extract_vidstream)
 
 __register_extractor(["https://www.xstreamcdn.com/v/",
                       "https://gcloud.live/v/",
@@ -355,6 +373,9 @@ __register_extractor(["https://www.xstreamcdn.com/v/",
                       {'d': 'fembed9hd.com'}])
 
 __register_extractor(["https://streamtape.com/e/"],
-                     __extract_streamtape,
-                     None,
-                     [{'d': 'https://streamtape.com'}])
+                     __extract_streamtape)
+
+__register_extractor(["https://streamsss.net/e/",
+                      "https://streamsb.net/e/",
+                      "https://sblanh.com/e/"],
+                     __extract_streamsb)

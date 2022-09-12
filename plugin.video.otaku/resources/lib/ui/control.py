@@ -354,3 +354,7 @@ def artPath():
             'themes',
             THEMES[int(getSetting("general.icons"))]
         )
+
+
+def getKodiVersion():
+    return int(xbmc.getInfoLabel("System.BuildVersion").split(".")[0])

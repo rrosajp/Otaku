@@ -1,10 +1,10 @@
 import itertools
-import requests
 import time
 import datetime
 import ast
+import json
 from functools import partial
-from resources.lib.ui import utils, database
+from resources.lib.ui import utils, database, client
 from resources.lib.ui.divide_flavors import div_flavor
 import six
 
@@ -225,8 +225,8 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -318,8 +318,8 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -407,8 +407,8 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -490,8 +490,8 @@ class AniListBrowser():
                                        }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -563,8 +563,8 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -635,8 +635,8 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return
@@ -923,9 +923,9 @@ class AniListBrowser():
         }
         '''
 
-        result = requests.post(self._URL, json={'query': query})
-        results = result.json()['data']
-        genres_list = results['genres']
+        result = client.request(self._URL, post={'query': query}, jpost=True)
+        results = json.loads(result)
+        genres_list = results['data']['genres']
 
         del genres_list[6]
 
@@ -1054,8 +1054,8 @@ class AniListBrowser():
 
     @div_flavor
     def _process_genre_view(self, query, variables, base_plugin_url, page, dub=False):
-        result = requests.post(self._URL, json={'query': query, 'variables': variables})
-        results = result.json()
+        result = client.request(self._URL, post={'query': query, 'variables': variables}, jpost=True)
+        results = json.loads(result)
 
         if "errors" in results.keys():
             return

@@ -1,11 +1,10 @@
 import json
-from resources.lib.ui import utils, database, control
+from resources.lib.ui import utils, database, control, client
 from resources.lib.debrid import all_debrid, real_debrid, premiumize
 from resources.lib import pages
 from resources.lib.ui.BrowserBase import BrowserBase
 from resources.lib.indexers import simkl, trakt
 import ast
-import requests
 import datetime
 
 
@@ -45,12 +44,12 @@ class OtakuBrowser(BrowserBase):
         return result
 
     def get_airing_dub(self):
-        resp = requests.get('https://armkai.vercel.app/api/airingdub')
+        resp = client.request('https://armkai.vercel.app/api/airingdub', output='extended')
 
-        if not resp.ok:
+        if resp[1] != '200':
             return []
 
-        all_results = list(map(self._parse_airing_dub_view, resp.json()))
+        all_results = list(map(self._parse_airing_dub_view, json.loads(resp[0])))
         return all_results
 
     def get_latest(self, real_debrid_enabled, premiumize_enabled):
@@ -81,7 +80,8 @@ class OtakuBrowser(BrowserBase):
 
         # result = requests.get("https://kaito-b.firebaseio.com/%s/Pages/%s.json" % (mal_id, source))
         # return result.json()
-        result = requests.get("https://arm2.vercel.app/api/kaito-b?type=myanimelist&id={}".format(mal_id)).json()
+        result = client.request("https://arm2.vercel.app/api/kaito-b?type=myanimelist&id={}".format(mal_id))
+        result = json.loads(result)
         result = result.get('Pages', {}).get(source, {})
         return result
 

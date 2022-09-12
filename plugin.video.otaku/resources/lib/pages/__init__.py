@@ -183,7 +183,9 @@ class Sources(DisplayWindow):
     def resolutionList(self):
         resolutions = []
         max_res = int(control.getSetting('general.maxResolution'))
-        if max_res == 3 or max_res < 3:
+        if max_res == 4 or max_res < 4:
+            resolutions.append('EQ')
+        if max_res < 4:
             resolutions.append('NA')
         if max_res < 3:
             resolutions.append('720p')
@@ -297,7 +299,7 @@ class Sources(DisplayWindow):
             len([i for i in self.embedSources if i['quality'] == '4K']),
             len([i for i in self.embedSources if i['quality'] == '1080p']),
             len([i for i in self.embedSources if i['quality'] == '720p']),
-            len([i for i in self.embedSources if i['quality'] == 'NA']),
+            len([i for i in self.embedSources if i['quality'] == 'EQ']),
         ]
 
         self.hosters_qual_len = list2
